@@ -779,6 +779,11 @@ ceph_test_filestore_workloadgen_SOURCES = \
 ceph_test_filestore_workloadgen_LDADD = $(LIBOS) $(CEPH_GLOBAL)
 bin_DEBUGPROGRAMS += ceph_test_filestore_workloadgen
 
+ceph_test_filestore_ops_SOURCES = \
+	test/filestore/test_filestore_ops.cc
+ceph_test_filestore_ops_LDADD = $(LIBOS) $(CEPH_GLOBAL)
+bin_DEBUGPROGRAMS += ceph_test_filestore_ops
+
 ceph_test_filestore_idempotent_SOURCES = \
 	test/filestore/test_idempotent.cc \
 	test/filestore/FileStoreTracker.cc \
