@@ -5273,11 +5273,6 @@ void ReplicatedPG::_build_finish_copy_transaction(CopyOpRef cop,
                                                   PGBackend::PGTransaction* t)
 {
   ObjectState& obs = cop->obc->obs;
-
-  if (obs.exists) {
-    t->remove(obs.oi.soid);
-  }
-
   if (cop->temp_cursor.is_initial()) {
     // write directly to final object
     cop->temp_coll = coll;
@@ -5296,16 +5291,21 @@ void ReplicatedPG::finish_copyfrom(OpContext *ctx)
   ObjectState& obs = ctx->new_obs;
   CopyFromCallback *cb = static_cast<CopyFromCallback*>(ctx->copy_cb);
 
+  if (obs.exists) {
+    ctx->op_t->remove(obs.oi.soid);
+  }
+
   if (!ctx->obs->exists) {
     ctx->delta_stats.num_objects++;
     obs.exists = true;
   }
+
   if (cb->is_temp_obj_used()) {
     ctx->discard_temp_oid = cb->temp_obj;
   }
   ctx->op_t->append(cb->results->final_tx);
   delete cb->results->final_tx;
-  cb->results->final_tx = NULL;
+  cb->results->final_tx = 0;
 
   // CopyFromCallback fills this in for us
   obs.oi.user_version = ctx->user_at_version;
