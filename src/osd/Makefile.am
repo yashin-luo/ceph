@@ -45,6 +45,7 @@ noinst_HEADERS += \
 	osd/PGBackend.h \
 	osd/ReplicatedBackend.h \
 	osd/ECBackend.h \
+	osd/ECUtil.h \
 	osd/ECMsgTypes.h \
 	osd/Watch.h \
 	osd/osd_types.h
