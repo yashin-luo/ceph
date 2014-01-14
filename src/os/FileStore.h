@@ -358,7 +358,8 @@ public:
     bool create,
     FDRef *outfd,
     IndexedPath *path = 0,
-    Index *index = 0);
+    Index *index = 0,
+	       int flags = 0);
   void lfn_close(FDRef fd);
   int lfn_link(coll_t c, coll_t newcid, const ghobject_t& o, const ghobject_t& newoid) ;
   int lfn_unlink(coll_t cid, const ghobject_t& o, const SequencerPosition &spos,

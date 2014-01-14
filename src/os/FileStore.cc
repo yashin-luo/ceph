@@ -208,13 +208,14 @@ int FileStore::lfn_open(coll_t cid,
 			bool create,
 			FDRef *outfd,
 			IndexedPath *path,
-			Index *index) 
+			Index *index,
+			int flags)
 {
   assert(get_allow_sharded_objects() ||
 	 ( oid.shard_id == ghobject_t::NO_SHARD &&
 	   oid.generation == ghobject_t::NO_GEN ));
   assert(outfd);
-  int flags = O_RDWR;
+  flags |= O_RDWR;
   if (create)
     flags |= O_CREAT;
   Index index2;
@@ -2700,8 +2701,13 @@ int FileStore::_write(coll_t cid, const ghobject_t& oid,
 
   int64_t actual;
 
+  int flags = 0;
+  if ((offset & 4095) == 0 &&
+      (len & 4095) == 0)
+    flags = O_DIRECT;      
+
   FDRef fd;
-  r = lfn_open(cid, oid, true, &fd);
+  r = lfn_open(cid, oid, true, &fd, NULL, NULL, flags);
   if (r < 0) {
     dout(0) << "write couldn't open " << cid << "/"
 	    << oid << ": "
