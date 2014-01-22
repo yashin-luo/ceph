@@ -70,6 +70,7 @@ struct ECSubRead {
   pg_shard_t from;
   tid_t tid;
   list<pair<hobject_t, pair<uint64_t, uint64_t> > > to_read;
+  set<hobject_t> attrs_to_read; 
   void encode(bufferlist &bl) const;
   void decode(bufferlist::iterator &bl);
 };
@@ -79,6 +80,7 @@ struct ECSubReadReply {
   pg_shard_t from;
   tid_t tid;
   list<pair<hobject_t, pair<uint64_t, bufferlist> > > buffers_read;
+  map<hobject_t, map<string, bufferlist> > attrs_read;
   void encode(bufferlist &bl) const;
   void decode(bufferlist::iterator &bl);
 };
