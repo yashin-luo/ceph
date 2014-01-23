@@ -27,10 +27,11 @@ class ReplicatedBackend : public PGBackend {
   };
   friend struct C_ReplicatedBackend_OnPullComplete;
 public:
-  OSDService *osd;
   CephContext *cct;
 
-  ReplicatedBackend(PGBackend::Listener *pg, coll_t coll, OSDService *osd);
+  ReplicatedBackend(
+    PGBackend::Listener *pg, coll_t coll, ObjectStore *store,
+    CephContext *cct);
 
   /// @see PGBackend::open_recovery_op
   RPGHandle *_open_recovery_op() {
