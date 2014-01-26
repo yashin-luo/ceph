@@ -44,6 +44,8 @@
 #include "common/config.h"
 #include "common/errno.h"
 
+#include "osd/ErasureCodePlugin.h"
+
 #include "include/compat.h"
 #include "include/assert.h"
 #include "include/stringify.h"
@@ -3636,6 +3638,52 @@ bool OSDMonitor::prepare_command(MMonCommand *m)
     getline(ss, rs);
     wait_for_finished_proposal(new Monitor::C_Command(mon, m, 0, rs,
 					      get_last_committed() + 1));
+    return true;
+
+  } else if (prefix == "osd crush rule create-erasure") {
+    string name, poolstr;
+    cmd_getval(g_ceph_context, cmdmap, "name", name);
+    vector<string> properties;
+    cmd_getval(g_ceph_context, cmdmap, "properties", properties);
+
+    if (osdmap.crush->rule_exists(name)) {
+      ss << "rule " << name << " already exists";
+      err = 0;
+      goto reply;
+    }
+
+    map<string,string> properties_map;
+    int r = prepare_pool_properties(pg_pool_t::TYPE_ERASURE,
+				    properties, &properties_map, ss);
+    if (r)
+      return r;
+
+    CrushWrapper newcrush;
+    _get_pending_crush(newcrush);
+
+    if (newcrush.rule_exists(name)) {
+      ss << "rule " << name << " already exists";
+      err = 0;
+    } else {
+      ErasureCodeInterfaceRef erasure_code;
+      err = get_erasure_code(properties_map, &erasure_code, ss);
+      if (err)
+	goto reply;
+
+      int rule = erasure_code->create_ruleset(name, newcrush, &ss);
+      erasure_code.reset();
+      if (rule < 0 && rule != -EEXIST) {
+	err = rule;
+	goto reply;
+      }
+      ss << "created rule " << name << " at " << rule;
+      pending_inc.crush.clear();
+      newcrush.encode(pending_inc.crush);
+    }
+
+    getline(ss, rs);
+    wait_for_finished_proposal(new Monitor::C_Command(mon, m, 0, rs,
+                                                      get_last_committed() + 1));
     return true;
 
   } else if (prefix == "osd crush rule rm") {
