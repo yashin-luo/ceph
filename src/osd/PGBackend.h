@@ -551,6 +551,14 @@
      const list<pair<pair<uint64_t, uint64_t>,
 		pair<bufferlist*, Context*> > > &to_read,
      Context *on_complete) = 0;
+
+   static PGBackend *build_pg_backend(
+     const pg_pool_t &pool,
+     Listener *l,
+     coll_t coll,
+     coll_t temp_coll,
+     ObjectStore *store,
+     CephContext *cct);
  };
 
 struct PG_SendMessageOnConn: public Context {

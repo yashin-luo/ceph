@@ -305,12 +305,7 @@ public:
     coll_t temp_coll,
     ObjectStore *store,
     CephContext *cct,
-    ErasureCodeInterfaceRef ec_impl)
-    : PGBackend(pg, store, coll, temp_coll),
-      cct(cct),
-      ec_impl(ec_impl),
-      stripe_width(ec_impl->get_chunk_count()),
-      stripe_size(4*(2<<10) /* TODO: make more flexible */) {}
+    ErasureCodeInterfaceRef ec_impl);
 
   int get_min_avail_to_read(
     const hobject_t &hoid,

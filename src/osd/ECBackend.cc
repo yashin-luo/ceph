@@ -137,6 +137,21 @@ ostream &operator<<(ostream &lhs, const ECBackend::RecoveryOp &rhs)
 	     << " extent_requested=" << rhs.extent_requested;
 }
 
+ECBackend::ECBackend(
+  PGBackend::Listener *pg,
+  coll_t coll,
+  coll_t temp_coll,
+  ObjectStore *store,
+  CephContext *cct,
+  ErasureCodeInterfaceRef ec_impl)
+  : PGBackend(pg, store, coll, temp_coll),
+    cct(cct),
+    ec_impl(ec_impl),
+    stripe_width(
+      ec_impl->get_chunk_size(4*(2<<10) /* make more flexible */) *
+      ec_impl->get_data_chunk_count()),
+    stripe_size(ec_impl->get_data_chunk_count()) {}
+
 PGBackend::RecoveryHandle *ECBackend::open_recovery_op()
 {
   return new ECRecoveryHandle;
