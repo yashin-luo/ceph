@@ -77,18 +77,17 @@
       * Called when peer is recovered
       */
      virtual void on_peer_recover(
-       int peer,
+       pg_shard_t peer,
        const hobject_t &oid,
        const ObjectRecoveryInfo &recovery_info,
        const object_stat_sum_t &stat
        ) = 0;
 
      virtual void begin_peer_recover(
-       int peer,
+       pg_shard_t peer,
        const hobject_t oid) = 0;
 
-     virtual void failed_push(int from, const hobject_t &soid) = 0;
-
+     virtual void failed_push(pg_shard_t from, const hobject_t &soid) = 0;
      
      virtual void cancel_pull(const hobject_t &soid) = 0;
 
@@ -107,15 +106,22 @@
        ObjectStore::Transaction *t,
        OpRequestRef op = OpRequestRef()
        ) = 0;
-     virtual epoch_t get_epoch() = 0;
-     virtual const vector<int> &get_actingbackfill() = 0;
+     virtual epoch_t get_epoch() const = 0;
+
+     virtual const set<pg_shard_t> &get_actingbackfill_shards() const = 0;
+
      virtual std::string gen_dbg_prefix() const = 0;
 
-     virtual const map<hobject_t, set<int> > &get_missing_loc() = 0;
-     virtual const map<int, pg_missing_t> &get_peer_missing() = 0;
-     virtual const map<int, pg_info_t> &get_peer_info() = 0;
-     virtual const pg_missing_t &get_local_missing() = 0;
-     virtual const PGLog &get_log() = 0;
+     virtual const map<hobject_t, set<pg_shard_t> > &get_missing_loc_shards()
+       const = 0;
+
+     virtual const map<pg_shard_t, pg_missing_t> &get_shard_missing()
+       const = 0;
+
+     virtual const map<pg_shard_t, pg_info_t> &get_shard_info() const = 0;
+
+     virtual const pg_missing_t &get_local_missing() const = 0;
+     virtual const PGLog &get_log() const = 0;
      virtual bool pgb_is_primary() const = 0;
      virtual OSDMapRef pgb_get_osdmap() const = 0;
      virtual const pg_info_t &get_info() const = 0;
@@ -128,7 +134,7 @@
        const eversion_t &applied_version) = 0;
 
      virtual bool should_send_op(
-       int peer,
+       pg_shard_t peer,
        const hobject_t &hoid) = 0;
 
      virtual void log_operation(
@@ -138,7 +144,7 @@
        ObjectStore::Transaction *t) = 0;
 
      virtual void update_peer_last_complete_ondisk(
-       int fromosd,
+       pg_shard_t fromosd,
        eversion_t lcod) = 0;
 
      virtual void update_last_complete_ondisk(
@@ -150,7 +156,16 @@
      virtual void schedule_work(
        GenContext<ThreadPool::TPHandle&> *c) = 0;
 
-     virtual int whoami() const = 0;
+     virtual pg_shard_t whoami_shard() const = 0;
+     int whoami() const {
+       return whoami_shard().osd;
+     }
+     spg_t whoami_spg_t() const {
+       return get_info().pgid;
+     }
+
+     virtual spg_t primary_spg_t() const = 0;
+     virtual pg_shard_t primary_shard() const = 0;
 
      virtual void send_message_osd_cluster(
        int peer, Message *m, epoch_t from_epoch) = 0;
@@ -265,7 +280,7 @@
        out->push_back(temp_coll);
    }
    void split_colls(
-     pg_t child,
+     spg_t child,
      int split_bits,
      int seed,
      ObjectStore::Transaction *t) {
