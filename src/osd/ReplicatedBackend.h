@@ -70,6 +70,16 @@ public:
   void clear_state();
   void on_flushed();
 
+  class RPCDec : public PeeringContinueDecider {
+  public:
+    bool operator()(const set<int> &have) const {
+      return have.size() >= 1;
+    }
+  };
+  PeeringContinueDecider *get_peering_continue_decider() {
+    return new RPCDec;
+  }
+
   virtual void dump_recovery_info(Formatter *f) const {
     {
       f->open_array_section("pull_from_peer");

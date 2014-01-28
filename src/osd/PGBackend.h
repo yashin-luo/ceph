@@ -295,7 +295,15 @@
 
    virtual void on_flushed() = 0;
 
-
+   class PeeringContinueDecider {
+   public:
+     /**
+      * have encodes the shards available
+      */
+     virtual bool operator()(const set<int> &have) const = 0;
+     virtual ~PeeringContinueDecider() {}
+   };
+   virtual PeeringContinueDecider *get_peering_continue_decider() = 0;
 
    void temp_colls(list<coll_t> *out) {
      if (temp_created)
