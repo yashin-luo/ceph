@@ -75,10 +75,10 @@ void ReplicatedBackend::recover_object(
 
 void ReplicatedBackend::check_recovery_sources(const OSDMapRef osdmap)
 {
-  for(map<int, set<hobject_t> >::iterator i = pull_from_peer.begin();
+  for(map<pg_shard_t, set<hobject_t> >::iterator i = pull_from_peer.begin();
       i != pull_from_peer.end();
       ) {
-    if (osdmap->is_down(i->first)) {
+    if (osdmap->is_down(i->first.osd)) {
       dout(10) << "check_recovery_sources resetting pulls from osd." << i->first
 	       << ", osdmap has it marked down" << dendl;
       for (set<hobject_t>::iterator j = i->second.begin();
@@ -503,6 +503,14 @@ void ReplicatedBackend::submit_transaction(
       )
     ).first->second;
 
+  op.waiting_for_applied.insert(
+    parent->get_actingbackfill_shards().begin(),
+    parent->get_actingbackfill_shards().end());
+  op.waiting_for_commit.insert(
+    parent->get_actingbackfill_shards().begin(),
+    parent->get_actingbackfill_shards().end());
+
+
   issue_op(
     soid,
     at_version,
@@ -515,10 +523,6 @@ void ReplicatedBackend::submit_transaction(
     log_entries,
     &op,
     op_t);
-
-  // add myself to gather set
-  op.waiting_for_applied.insert(osd->whoami);
-  op.waiting_for_commit.insert(osd->whoami);
 
   ObjectStore::Transaction local_t;
   if (t->get_temp_added().size()) {
@@ -552,7 +556,7 @@ void ReplicatedBackend::op_applied(
   if (op->op)
     op->op->mark_event("op_applied");
 
-  op->waiting_for_applied.erase(get_parent()->whoami());
+  op->waiting_for_applied.erase(get_parent()->whoami_shard());
   parent->op_applied(op->v);
 
   if (op->waiting_for_applied.empty()) {
@@ -572,7 +576,7 @@ void ReplicatedBackend::op_commit(
   if (op->op)
     op->op->mark_event("op_commit");
 
-  op->waiting_for_commit.erase(get_parent()->whoami());
+  op->waiting_for_commit.erase(get_parent()->whoami_shard());
 
   if (op->waiting_for_commit.empty()) {
     op->on_commit->complete(0);
@@ -593,7 +597,7 @@ void ReplicatedBackend::sub_op_modify_reply(OpRequestRef op)
 
   // must be replication.
   tid_t rep_tid = r->get_tid();
-  int fromosd = r->get_source().num();
+  pg_shard_t from = r->from;
 
   if (in_progress_ops.count(rep_tid)) {
     map<tid_t, InProgressOp>::iterator iter =
@@ -606,30 +610,30 @@ void ReplicatedBackend::sub_op_modify_reply(OpRequestRef op)
     if (m)
       dout(7) << __func__ << ": tid " << ip_op.tid << " op " //<< *m
 	      << " ack_type " << r->ack_type
-	      << " from osd." << fromosd
+	      << " from " << from
 	      << dendl;
     else
       dout(7) << __func__ << ": tid " << ip_op.tid << " (no op) "
 	      << " ack_type " << r->ack_type
-	      << " from osd." << fromosd
+	      << " from " << from
 	      << dendl;
 
     // oh, good.
 
     if (r->ack_type & CEPH_OSD_FLAG_ONDISK) {
-      assert(ip_op.waiting_for_commit.count(fromosd));
-      ip_op.waiting_for_commit.erase(fromosd);
+      assert(ip_op.waiting_for_commit.count(from));
+      ip_op.waiting_for_commit.erase(from);
       if (ip_op.op)
 	ip_op.op->mark_event("sub_op_commit_rec");
     } else {
-      assert(ip_op.waiting_for_applied.count(fromosd));
+      assert(ip_op.waiting_for_applied.count(from));
       if (ip_op.op)
 	ip_op.op->mark_event("sub_op_applied_rec");
     }
-    ip_op.waiting_for_applied.erase(fromosd);
+    ip_op.waiting_for_applied.erase(from);
 
     parent->update_peer_last_complete_ondisk(
-      fromosd,
+      from,
       r->get_last_complete_ondisk());
 
     if (ip_op.waiting_for_applied.empty() &&
