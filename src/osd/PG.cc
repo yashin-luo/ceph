@@ -1263,10 +1263,12 @@ bool PG::choose_acting(pg_shard_t &auth_log_shard_id)
   if (backfill_targets.empty()) {
     // Caller is GetInfo
     backfill_targets = want_backfill;
+    actingset = actingbackfill;
     for (set<pg_shard_t>::iterator i = backfill_targets.begin();
 	 i != backfill_targets.end();
 	 ++i) {
       stray_set.erase(*i);
+      actingset.erase(*i);
     }
   } else {
     // Will not change if already set because up would have had to change
