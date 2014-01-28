@@ -432,7 +432,7 @@ int finish_remove_pgs(ObjectStore *store, uint64_t *next_removal_seq)
   for (vector<coll_t>::iterator it = ls.begin();
        it != ls.end();
        ++it) {
-    pg_t pgid;
+    spg_t pgid;
     snapid_t snap;
 
     if (it->is_temp(pgid)) {
@@ -465,12 +465,13 @@ int initiate_new_remove_pg(ObjectStore *store, pg_t r_pgid,
 {
   ObjectStore::Transaction *rmt = new ObjectStore::Transaction;
 
-  if (store->collection_exists(coll_t(r_pgid))) {
+  if (store->collection_exists(coll_t(spg_t(r_pgid, ghobject_t::no_shard())))) {
       coll_t to_remove = coll_t::make_removal_coll((*next_removal_seq)++,
-        r_pgid);
-      cout << "collection rename " << coll_t(r_pgid) << " to " << to_remove
+        spg_t(r_pgid, ghobject_t::no_shard()));
+      cout << "collection rename " << coll_t(spg_t(r_pgid, ghobject_t::no_shard()))
+	   << " to " << to_remove
         << std::endl;
-      rmt->collection_rename(coll_t(r_pgid), to_remove);
+      rmt->collection_rename(coll_t(spg_t(r_pgid, ghobject_t::no_shard())), to_remove);
   } else {
     delete rmt;
     return ENOENT;
@@ -988,11 +989,11 @@ int do_import(ObjectStore *store, OSDSuperblock sb)
     return 1;
   }
 
-  log_oid = OSD::make_pg_log_oid(pgid);
-  biginfo_oid = OSD::make_pg_biginfo_oid(pgid);
+  log_oid = OSD::make_pg_log_oid(spg_t(pgid, ghobject_t::no_shard()));
+  biginfo_oid = OSD::make_pg_biginfo_oid(spg_t(pgid, ghobject_t::no_shard()));
 
   //Check for PG already present.
-  coll_t coll(pgid);
+  coll_t coll(spg_t(pgid, ghobject_t::no_shard()));
   if (store->collection_exists(coll)) {
     cout << "pgid " << pgid << " already exists" << std::endl;
     return 1;
@@ -1000,7 +1001,8 @@ int do_import(ObjectStore *store, OSDSuperblock sb)
 
   //Switch to collection which will be removed automatically if
   //this program is interupted.
-  coll_t rmcoll = coll_t::make_removal_coll(next_removal_seq, pgid);
+  coll_t rmcoll = coll_t::make_removal_coll(
+    next_removal_seq, spg_t(pgid, ghobject_t::no_shard()));
   ObjectStore::Transaction *t = new ObjectStore::Transaction;
   t->create_collection(rmcoll);
   store->apply_transaction(*t);
@@ -1286,8 +1288,8 @@ int main(int argc, char **argv)
     goto out;
   }
 
-  log_oid = OSD::make_pg_log_oid(pgid);
-  biginfo_oid = OSD::make_pg_biginfo_oid(pgid);
+  log_oid = OSD::make_pg_log_oid(spg_t(pgid, ghobject_t::no_shard()));
+  biginfo_oid = OSD::make_pg_biginfo_oid(spg_t(pgid, ghobject_t::no_shard()));
 
   if (type == "remove") {
     uint64_t next_removal_seq = 0;	//My local seq
@@ -1311,13 +1313,13 @@ int main(int argc, char **argv)
 
   for (it = ls.begin(); it != ls.end(); ++it) {
     snapid_t snap;
-    pg_t tmppgid;
+    spg_t tmppgid;
 
     if (!it->is_pg(tmppgid, snap)) {
       continue;
     }
 
-    if (tmppgid != pgid) {
+    if (tmppgid.pgid != pgid) {
       continue;
     }
     if (snap != CEPH_NOSNAP && debug) {
@@ -1340,9 +1342,10 @@ int main(int argc, char **argv)
     if (debug)
       cerr << "map_epoch " << map_epoch << std::endl;
 
-    pg_info_t info(pgid);
+    pg_info_t info(spg_t(pgid, ghobject_t::no_shard()));
     map<epoch_t,pg_interval_t> past_intervals;
-    hobject_t biginfo_oid = OSD::make_pg_biginfo_oid(pgid);
+    hobject_t biginfo_oid = OSD::make_pg_biginfo_oid(
+      spg_t(pgid, ghobject_t::no_shard()));
     interval_set<snapid_t> snap_collections;
   
     __u8 struct_ver;
