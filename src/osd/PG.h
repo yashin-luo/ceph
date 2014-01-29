@@ -300,8 +300,104 @@ public:
   }
   hobject_t    log_oid;
   hobject_t    biginfo_oid;
-  map<hobject_t, set<pg_shard_t> > missing_loc;
-  set<pg_shard_t> missing_loc_sources;           // superset of missing_loc locations
+
+  class MissingLoc {
+    map<hobject_t, pg_missing_t::item> needs_recovery_map;
+    map<hobject_t, set<pg_shard_t> > missing_loc;
+    set<pg_shard_t> missing_loc_sources;
+    PG *pg;
+    boost::scoped_ptr<PGBackend::IsReadablePredicate> is_readable;
+    set<pg_shard_t> empty_set;
+  public:
+    MissingLoc(PG *pg)
+      : pg(pg) {}
+    void set_is_readable_predicate(
+      PGBackend::IsReadablePredicate *_is_readable) {
+      is_readable.reset(_is_readable);
+    }
+    string gen_prefix() const { return pg->gen_prefix(); }
+    bool needs_recovery(
+      const hobject_t &hoid,
+      eversion_t *v = 0) const {
+      map<hobject_t, pg_missing_t::item>::const_iterator i =
+	needs_recovery_map.find(hoid);
+      if (i == needs_recovery_map.end())
+	return false;
+      if (v)
+	*v = i->second.need;
+      return true;
+    }
+    bool is_unfound(const hobject_t &hoid) const {
+      return needs_recovery(hoid) && (
+	!missing_loc.count(hoid) ||
+	!(*is_readable)(missing_loc.find(hoid)->second));
+    }
+    uint64_t num_unfound() const {
+      uint64_t ret = 0;
+      for (map<hobject_t, pg_missing_t::item>::const_iterator i =
+	     needs_recovery_map.begin();
+	   i != needs_recovery_map.end();
+	   ++i) {
+	if (is_unfound(i->first))
+	  ++ret;
+      }
+      return ret;
+    }
+
+    void clear() {
+      needs_recovery_map.clear();
+      missing_loc.clear();
+      missing_loc_sources.clear();
+    }
+
+    void add_location(const hobject_t &hoid, pg_shard_t location) {
+      missing_loc[hoid].insert(location);
+    }
+    void remove_location(const hobject_t &hoid, pg_shard_t location) {
+      missing_loc[hoid].erase(location);
+    }
+    void add_active_missing(const pg_missing_t &missing) {
+      for (map<hobject_t, pg_missing_t::item>::const_iterator i =
+	     missing.missing.begin();
+	   i != missing.missing.end();
+	   ++i) {
+	map<hobject_t, pg_missing_t::item>::const_iterator j =
+	  needs_recovery_map.find(i->first);
+	if (j == needs_recovery_map.end()) {
+	  needs_recovery_map.insert(*i);
+	} else {
+	  assert(i->second.need == j->second.need);
+	}
+      }
+    }
+
+    /// Adds info about a possible recovery source
+    bool add_source_info(
+      pg_shard_t source,           ///< [in] source
+      const pg_info_t &oinfo,      ///< [in] info
+      const pg_missing_t &omissing ///< [in] (optional) missing
+      ); ///< @return whether a new object location was discovered
+
+    /// Uses osdmap to update structures for now down sources
+    void check_recovery_sources(const OSDMapRef osdmap);
+
+    /// Call when hoid is no longer missing in acting set
+    void recovered(const hobject_t &hoid) {
+      needs_recovery_map.erase(hoid);
+      missing_loc.erase(hoid);
+    }
+
+    const set<pg_shard_t> &get_locations(const hobject_t &hoid) const {
+      return missing_loc.count(hoid) ?
+	missing_loc.find(hoid)->second : empty_set;
+    }
+    const map<hobject_t, set<pg_shard_t> > &get_missing_locs() const {
+      return missing_loc;
+    }
+    const map<hobject_t, pg_missing_t::item> &get_needs_recovery() const {
+      return needs_recovery_map;
+    }
+  } missing_loc;
   
   interval_set<snapid_t> snap_collections; // obsolete
   map<epoch_t,pg_interval_t> past_intervals;
@@ -724,7 +820,7 @@ public:
     pg_log_t &olog, pg_shard_t from);
   void rewind_divergent_log(ObjectStore::Transaction& t, eversion_t newhead);
   bool search_for_missing(
-    const pg_info_t &oinfo, const pg_missing_t *omissing,
+    const pg_info_t &oinfo, const pg_missing_t &omissing,
     pg_shard_t fromosd);
 
   void check_for_lost_objects();
@@ -780,10 +876,10 @@ public:
   void proc_primary_info(ObjectStore::Transaction &t, const pg_info_t &info);
 
   bool have_unfound() const { 
-    return pg_log.get_missing().num_missing() > missing_loc.size();
+    return missing_loc.num_unfound();
   }
   int get_num_unfound() const {
-    return pg_log.get_missing().num_missing() - missing_loc.size();
+    return missing_loc.num_unfound();
   }
 
   virtual void check_local() = 0;

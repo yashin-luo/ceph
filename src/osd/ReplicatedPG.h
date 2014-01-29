@@ -303,7 +303,7 @@ public:
   std::string gen_dbg_prefix() const { return gen_prefix(); }
   
   const map<hobject_t, set<pg_shard_t> > &get_missing_loc_shards() const {
-    return missing_loc;
+    return missing_loc.get_missing_locs();
   }
   const map<pg_shard_t, pg_missing_t> &get_shard_missing() const {
     return peer_missing;

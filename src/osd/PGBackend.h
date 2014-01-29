@@ -305,6 +305,16 @@
    };
    virtual PeeringContinueDecider *get_peering_continue_decider() = 0;
 
+   class IsReadablePredicate {
+   public:
+     /**
+      * have encodes the shards available
+      */
+     virtual bool operator()(const set<pg_shard_t> &have) const = 0;
+     virtual ~IsReadablePredicate() {}
+   };
+   virtual IsReadablePredicate *get_is_readable_predicate() = 0;
+
    void temp_colls(list<coll_t> *out) {
      if (temp_created)
        out->push_back(temp_coll);
