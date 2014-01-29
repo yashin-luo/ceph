@@ -605,6 +605,7 @@ public:
     for (set<pg_shard_t>::iterator i = actingbackfill.begin();
 	 i != actingbackfill.end();
 	 ++i) {
+      if (*i == get_primary()) continue;
       if (peer_last_complete_ondisk.count(*i) == 0)
 	return false;   // we don't have complete info
       eversion_t a = peer_last_complete_ondisk[*i];
