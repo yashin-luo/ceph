@@ -48,6 +48,7 @@
    this bit to determine if peers support NAK messages. */
 #define CEPH_FEATURE_OSDMAP_ENC    (1ULL<<39)
 #define CEPH_FEATURE_MDS_INLINE_DATA     (1ULL<<40)
+#define CEPH_FEATURE_OSD_PRIMARY_AFFINITY (1ULL<<41)  /* overlap with OSDMAP_ENC */
 
 /*
  * The introduction of CEPH_FEATURE_OSD_SNAPMAPPER caused the feature
@@ -116,6 +117,7 @@ static inline unsigned long long ceph_sanitize_features(unsigned long long f) {
          CEPH_FEATURE_OSD_ERASURE_CODES |   \
 	 CEPH_FEATURE_OSDMAP_ENC |          \
 	 CEPH_FEATURE_MDS_INLINE_DATA |	    \
+	 CEPH_FEATURE_OSD_PRIMARY_AFFINITY |	\
 	 0ULL)
 
 #define CEPH_FEATURES_SUPPORTED_DEFAULT  CEPH_FEATURES_ALL
