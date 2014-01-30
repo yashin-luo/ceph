@@ -635,7 +635,7 @@ protected:
   // Ops waiting on backfill_pos to change
   list<OpRequestRef>            waiting_for_active;
   list<OpRequestRef>            waiting_for_all_missing;
-  map<hobject_t, list<OpRequestRef> > waiting_for_missing_object,
+  map<hobject_t, list<OpRequestRef> > waiting_for_unreadable_object,
 			     waiting_for_degraded_object,
 			     waiting_for_blocked_object;
   // Callbacks should assume pg (and nothing else) is locked

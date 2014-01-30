@@ -1925,7 +1925,7 @@ static void split_replay_queue(
 void PG::split_ops(PG *child, unsigned split_bits) {
   unsigned match = child->info.pgid.ps();
   assert(waiting_for_all_missing.empty());
-  assert(waiting_for_missing_object.empty());
+  assert(waiting_for_unreadable_object.empty());
   assert(waiting_for_degraded_object.empty());
   assert(waiting_for_ack.empty());
   assert(waiting_for_ondisk.empty());
@@ -3474,7 +3474,7 @@ void PG::repair_object(
     peer_missing[bad_peer].add(soid, oi.version, eversion_t());
   } else {
     // We should only be scrubbing if the PG is clean.
-    assert(waiting_for_missing_object.empty());
+    assert(waiting_for_unreadable_object.empty());
 
     pg_log.missing_add(soid, oi.version, eversion_t());
     missing_loc.add_location(soid, ok_peer);
