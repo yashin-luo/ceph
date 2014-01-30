@@ -328,6 +328,7 @@ if [ "$start_mon" -eq 1 ]; then
         osd crush chooseleaf type = 0
         osd pool default min size = 1
         run dir = $CEPH_OUT_DIR
+        osd pool default erasure code directory = $LD_LIBRARY_PATH
 EOF
 if [ "$cephx" -eq 1 ] ; then
 cat <<EOF >> $conf
