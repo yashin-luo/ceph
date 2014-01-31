@@ -5856,6 +5856,12 @@ int Client::_read_sync(Fh *f, uint64_t off, uint64_t len, bufferlist *bl)
       bl->claim_append(tbl);
     }
     // short read?
+    ldout(cct, 20) << __func__ << " r " << r << " wanted " << wanted
+		   << " in->size " << in->size << " pos " << pos
+		   << " left " << left << " read " << read
+		   << " bl.len " << bl->length()
+		   << " tbl.len " << tbl.length()
+		   << dendl;
     if (r >= 0 && r < wanted) {
       if (pos < in->size) {
 	// zero up to known EOF
