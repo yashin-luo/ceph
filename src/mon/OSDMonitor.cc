@@ -2773,6 +2773,23 @@ int OSDMonitor::prepare_pool_properties(const unsigned pool_type,
   return 0;
 }
 
+int OSDMonitor::prepare_pool_size(const unsigned pool_type,
+				  const map<string,string> &properties,
+				  unsigned *size,
+				  stringstream &ss)
+{
+  int err = 0;
+  switch (pool_type) {
+  case pg_pool_t::TYPE_REPLICATED:
+    *size = g_conf->osd_pool_default_size;
+    break;
+  default:
+    ss << "prepare_pool_size: " << pool_type << " is not a known pool type";
+    err = -EINVAL;
+    break;
+  }
+  return err;
+}
 /**
  * @param name The name of the new pool
  * @param auid The auid of the pool owner. Can be -1
@@ -2804,6 +2821,10 @@ int OSDMonitor::prepare_new_pool(string& name, uint64_t auid, int crush_ruleset,
       return -EINVAL;
     }
   }
+  unsigned size;
+  r = prepare_pool_size(pool_type, properties_map, &size, ss);
+  if (r)
+    return r;
 
   for (map<int64_t,string>::iterator p = pending_inc.new_pool_names.begin();
        p != pending_inc.new_pool_names.end();
@@ -2822,7 +2843,7 @@ int OSDMonitor::prepare_new_pool(string& name, uint64_t auid, int crush_ruleset,
   if (g_conf->osd_pool_default_flag_hashpspool)
     pi->flags |= pg_pool_t::FLAG_HASHPSPOOL;
 
-  pi->size = g_conf->osd_pool_default_size;
+  pi->size = size;
   pi->min_size = g_conf->get_osd_pool_default_min_size();
   pi->crush_ruleset = crush_ruleset;
   pi->object_hash = CEPH_STR_HASH_RJENKINS;
