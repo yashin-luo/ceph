@@ -48,6 +48,7 @@ class Finisher {
 
  public:
   void queue(Context *c, int r = 0) {
+    assert(c);
     finisher_lock.Lock();
     if (r) {
       finisher_queue_rval.push_back(pair<Context*, int>(c, r));
@@ -60,6 +61,11 @@ class Finisher {
       logger->inc(l_finisher_queue_len);
   }
   void queue(vector<Context*>& ls) {
+    for (vector<Context*>::iterator i = ls.begin();
+	 i != ls.end();
+	 ++i) {
+      assert(*i);
+    }
     finisher_lock.Lock();
     finisher_queue.insert(finisher_queue.end(), ls.begin(), ls.end());
     finisher_cond.Signal();
@@ -69,6 +75,11 @@ class Finisher {
       logger->inc(l_finisher_queue_len);
   }
   void queue(deque<Context*>& ls) {
+    for (deque<Context*>::iterator i = ls.begin();
+	 i != ls.end();
+	 ++i) {
+      assert(*i);
+    }
     finisher_lock.Lock();
     finisher_queue.insert(finisher_queue.end(), ls.begin(), ls.end());
     finisher_cond.Signal();
