@@ -6060,8 +6060,6 @@ void ReplicatedPG::eval_repop(RepGather *repop)
     // ondisk?
     if (repop->all_committed) {
 
-      release_op_ctx_locks(repop->ctx);
-
       log_op_stats(repop->ctx);
       publish_stats_to_osd();
 
@@ -6103,6 +6101,8 @@ void ReplicatedPG::eval_repop(RepGather *repop)
 
     // applied?
     if (repop->all_applied) {
+
+      release_op_ctx_locks(repop->ctx);
 
       // send dup acks, in order
       if (waiting_for_ack.count(repop->v)) {
