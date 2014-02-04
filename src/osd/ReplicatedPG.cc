@@ -6614,7 +6614,8 @@ ObjectContextRef ReplicatedPG::get_object_context(const hobject_t& soid,
   ObjectContextRef obc = object_contexts.lookup(soid);
   if (obc) {
     dout(10) << "get_object_context " << obc << " " << soid
-	     << " " << obc->rwstate << dendl;
+	     << " " << obc->rwstate
+	     << " oi:" << obc->obs.oi << dendl;
   } else {
     // check disk
     bufferlist bv;
@@ -6666,6 +6667,7 @@ ObjectContextRef ReplicatedPG::get_object_context(const hobject_t& soid,
 
     dout(10) << "get_object_context " << obc << " " << soid
 	     << " " << obc->rwstate
+	     << " oi:" << obc->obs.oi
 	     << " 0 -> 1 read " << obc->obs.oi << dendl;
   }
   return obc;
