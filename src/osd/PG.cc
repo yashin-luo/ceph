@@ -3532,6 +3532,8 @@ void PG::scrub(ThreadPool::TPHandle &handle)
     scrubber.is_chunky = true;
     assert(backfill_targets.empty());
     for (unsigned i=1; i<acting.size(); i++) {
+      if (acting[i] == CRUSH_ITEM_NONE)
+	continue;
       ConnectionRef con = osd->get_con_osd_cluster(acting[i], get_osdmap()->get_epoch());
       if (!con)
 	continue;
@@ -4431,6 +4433,8 @@ bool PG::may_need_replay(const OSDMapRef osdmap) const
     // consider ACTING osds
     for (unsigned i=0; i<interval.acting.size(); i++) {
       int o = interval.acting[i];
+      if (o == CRUSH_ITEM_NONE)
+	continue;
 
       const osd_info_t *pinfo = 0;
       if (osdmap->exists(o))
@@ -6574,6 +6578,8 @@ boost::statechart::result PG::RecoveryState::GetInfo::react(const MNotifyRec& in
 	  bool any_down_now = false;
 	  for (unsigned i=0; i<interval.acting.size(); i++) {
 	    int o = interval.acting[i];
+	    if (o == CRUSH_ITEM_NONE)
+	      continue;
 	    pg_shard_t so(o, pg->pool.info.ec_pool() ? i : ghobject_t::NO_SHARD);
 	    if (!osdmap->exists(o) || osdmap->get_info(o).lost_at > interval.first)
 	      continue;  // dne or lost
@@ -7171,12 +7177,16 @@ PG::PriorSet::PriorSet(bool ec_pool,
   // but because we want their pg_info to inform choose_acting(), and
   // so that we know what they do/do not have explicitly before
   // sending them any new info/logs/whatever.
-  for (unsigned i=0; i<acting.size(); i++)
-    probe.insert(pg_shard_t(acting[i], ec_pool ? i : ghobject_t::NO_SHARD));
+  for (unsigned i=0; i<acting.size(); i++) {
+    if (acting[i] != CRUSH_ITEM_NONE)
+      probe.insert(pg_shard_t(acting[i], ec_pool ? i : ghobject_t::NO_SHARD));
+  }
   // It may be possible to exlude the up nodes, but let's keep them in
   // there for now.
-  for (unsigned i=0; i<up.size(); i++)
-    probe.insert(pg_shard_t(up[i], ec_pool ? i : ghobject_t::NO_SHARD));
+  for (unsigned i=0; i<up.size(); i++) {
+    if (up[i] != CRUSH_ITEM_NONE)
+      probe.insert(pg_shard_t(up[i], ec_pool ? i : ghobject_t::NO_SHARD));
+  }
 
   for (map<epoch_t,pg_interval_t>::const_reverse_iterator p = past_intervals.rbegin();
        p != past_intervals.rend();
@@ -7202,6 +7212,8 @@ PG::PriorSet::PriorSet(bool ec_pool,
     // consider ACTING osds
     for (unsigned i=0; i<interval.acting.size(); i++) {
       int o = interval.acting[i];
+      if (o == CRUSH_ITEM_NONE)
+	continue;
       pg_shard_t so(o, ec_pool ? i : ghobject_t::NO_SHARD);
 
       const osd_info_t *pinfo = 0;
