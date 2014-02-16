@@ -534,6 +534,12 @@
      uint64_t len,
      ObjectStore::Transaction *t) {}
      
+   /// Discard append event
+   virtual void discard_append(
+     const hobject_t &hoid,
+     uint64_t off,
+     uint64_t len,
+     ObjectStore::Transaction *t) {}
 
    /// List objects in collection
    int objects_list_partial(

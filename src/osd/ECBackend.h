@@ -470,6 +470,12 @@ public:
     uint64_t len,
     ObjectStore::Transaction *t);
 
+  void discard_append(
+    const hobject_t &hoid,
+    uint64_t off,
+    uint64_t len,
+    ObjectStore::Transaction *t);
+
   bool scrub_supported() { return true; }
 
   void be_deep_scrub(

@@ -729,6 +729,27 @@ public:
 		       pg_missing_t& omissing, pg_shard_t from);
   bool proc_replica_info(pg_shard_t from, const pg_info_t &info);
 
+  struct LogEntryDiscard : public ObjectModDesc::Visitor {
+    const hobject_t &soid;
+    PG *pg;
+    ObjectStore::Transaction *t;
+    LogEntryDiscard(const hobject_t &soid, PG *pg, ObjectStore::Transaction *t)
+      : soid(soid), pg(pg), t(t) {}
+    void rmobject(version_t old_version) {
+      pg->get_pgbackend()->trim_stashed_object(
+	soid,
+	old_version,
+	t);
+    }
+    void append(uint64_t off, uint64_t len) {
+      pg->get_pgbackend()->discard_append(
+	soid,
+	off,
+	len,
+	t);
+    }
+  };
+
 
   struct LogEntryTrimmer : public ObjectModDesc::Visitor {
     const hobject_t &soid;
@@ -772,6 +793,7 @@ public:
     set<hobject_t> cannot_rollback;
     set<hobject_t> to_remove;
     list<pg_log_entry_t> to_trim;
+    list<pg_log_entry_t> to_discard;
     
     // LogEntryHandler
     void remove(const hobject_t &hoid) {
@@ -790,8 +812,8 @@ public:
     void cant_rollback(const pg_log_entry_t &entry) {
       map<hobject_t, list<pg_log_entry_t> >::iterator i = to_rollback.find(entry.soid);
       if (i != to_rollback.end()) {
-	to_trim.splice(
-	  to_trim.end(),
+	to_discard.splice(
+	  to_discard.end(),
 	  i->second,
 	  i->second.begin(),
 	  i->second.end());
@@ -800,6 +822,9 @@ public:
       }
       cannot_rollback.insert(entry.soid);
       trim(entry);
+    }
+    void discard(const pg_log_entry_t &entry) {
+      to_discard.push_back(entry);
     }
     void trim(const pg_log_entry_t &entry) {
       to_trim.push_back(entry);
@@ -830,6 +855,12 @@ public:
 	   ++i) {
 	LogEntryTrimmer trimmer(i->soid, pg, t);
 	i->mod_desc.visit(&trimmer);
+      }
+      for (list<pg_log_entry_t>::reverse_iterator i = to_trim.rbegin();
+	   i != to_trim.rend();
+	   ++i) {
+	LogEntryDiscard discard(i->soid, pg, t);
+	i->mod_desc.visit(&discard);
       }
     }
   };

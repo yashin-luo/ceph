@@ -1630,6 +1630,20 @@ void ECBackend::trim_append(
 	off)));
 }
 
+void ECBackend::discard_append(
+  const hobject_t &hoid,
+  uint64_t off,
+  uint64_t len,
+  ObjectStore::Transaction *t)
+{
+  t->rmattr(
+    coll,
+    ghobject_t(hoid, ghobject_t::NO_GEN, get_parent()->whoami_shard().shard),
+    ECUtil::generate_hinfo_key_string(
+      sinfo.aligned_logical_offset_to_chunk_offset(
+	off + len)));
+}
+
 void ECBackend::be_deep_scrub(
   const hobject_t &poid,
   ScrubMap::object &o,
