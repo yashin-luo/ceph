@@ -1627,7 +1627,7 @@ void ECBackend::trim_append(
     ghobject_t(hoid, ghobject_t::NO_GEN, get_parent()->whoami_shard().shard),
     ECUtil::generate_hinfo_key_string(
       sinfo.aligned_logical_offset_to_chunk_offset(
-	off + len)));
+	off)));
 }
 
 void ECBackend::be_deep_scrub(
