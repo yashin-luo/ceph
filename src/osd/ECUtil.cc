@@ -4,102 +4,34 @@
 #include "include/encoding.h"
 #include "ECUtil.h"
 
-void ECUtil::pack_append_chunk(
-  const stripe_info_t &sinfo,
-  uint32_t stripe_sum,
-  bufferlist &raw_chunk,
-  bufferlist *packed_chunk) {
-  assert(packed_chunk);
-  assert(packed_chunk->length() % sinfo.get_chunk_size() == 0);
-  assert(raw_chunk.length() == sinfo.get_unpadded_chunk_size());
-  uint32_t chunk_sum = raw_chunk.crc32c(0);
-  packed_chunk->claim_append(raw_chunk);
-  ::encode(stripe_sum, *packed_chunk);
-  ::encode(chunk_sum, *packed_chunk);
-  packed_chunk->append_zero(
-    sinfo.get_chunk_size() - sinfo.get_unpadded_chunk_size() - CHUNK_INFO);
-}
-
-void ECUtil::unpack_chunk(
-  const stripe_info_t &sinfo,
-  bufferlist &packed_chunk,
-  bufferlist *raw_chunk,
-  uint32_t *stripe_sum,
-  uint32_t *chunk_sum) {
-  assert(raw_chunk);
-  assert(packed_chunk.length() == sinfo.get_chunk_size());
-  raw_chunk->substr_of(packed_chunk, 0, sinfo.get_unpadded_chunk_size());
-  bufferlist::iterator p = packed_chunk.begin();
-  p.seek(sinfo.get_unpadded_chunk_size());
-  uint32_t sum;
-
-  if (stripe_sum)
-    ::decode(*stripe_sum, p);
-  else
-    ::decode(sum, p);
-
-  if (chunk_sum)
-    ::decode(*chunk_sum, p);
-  else
-    ::decode(sum, p);
-}
-
-int ECUtil::unpack_verify_chunk(
-  const stripe_info_t &sinfo,
-  bufferlist &packed_chunk,
-  bufferlist *raw_chunk,
-  uint32_t *stripe_sum) {
-  uint32_t chunk_sum = 0;
-  unpack_chunk(
-    sinfo, packed_chunk, raw_chunk, stripe_sum, &chunk_sum);
-  if (raw_chunk->crc32c(0) == chunk_sum)
-    return 0;
-  else
-    return -EIO;
-}
-
 int ECUtil::decode(
   const stripe_info_t &sinfo,
   ErasureCodeInterfaceRef &ec_impl,
   map<int, bufferlist> &to_decode,
   bufferlist *out) {
 
-  uint64_t obj_size = to_decode.begin()->second.length();
+  uint64_t total_chunk_size = to_decode.begin()->second.length();
 
   assert(to_decode.size());
-  assert(obj_size % sinfo.get_chunk_size() == 0);
+  assert(total_chunk_size % sinfo.get_chunk_size() == 0);
   assert(out);
   assert(out->length() == 0);
 
   for (map<int, bufferlist>::iterator i = to_decode.begin();
        i != to_decode.end();
        ++i) {
-    assert(i->second.length() == obj_size);
+    assert(i->second.length() == total_chunk_size);
   }
 
-  if (obj_size == 0)
+  if (total_chunk_size == 0)
     return 0;
 
-  for (uint64_t i = 0; i < obj_size; i += sinfo.get_chunk_size()) {
+  for (uint64_t i = 0; i < total_chunk_size; i += sinfo.get_chunk_size()) {
     map<int, bufferlist> chunks;
-    uint32_t first_stripe_sum = 0;
     for (map<int, bufferlist>::iterator j = to_decode.begin();
 	 j != to_decode.end();
 	 ++j) {
-      uint32_t this_stripe_sum = 0;
-      bufferlist bl;
-      bl.substr_of(j->second, i, sinfo.get_chunk_size());
-      int r = unpack_verify_chunk(
-	sinfo,
-	bl,
-	&(chunks[j->first]),
-	&this_stripe_sum);
-      if (r < 0)
-	return r;
-      if (j == to_decode.begin())
-	first_stripe_sum = this_stripe_sum;
-      if (first_stripe_sum != this_stripe_sum)
-	return -EINVAL;
+      chunks[j->first].substr_of(j->second, i, sinfo.get_chunk_size());
     }
     bufferlist bl;
     int r = ec_impl->decode_concat(chunks, &bl);
@@ -116,18 +48,18 @@ int ECUtil::decode(
   map<int, bufferlist> &to_decode,
   map<int, bufferlist*> &out) {
 
-  uint64_t obj_size = to_decode.begin()->second.length();
+  uint64_t total_chunk_size = to_decode.begin()->second.length();
 
   assert(to_decode.size());
-  assert(obj_size % sinfo.get_chunk_size() == 0);
+  assert(total_chunk_size % sinfo.get_chunk_size() == 0);
 
   for (map<int, bufferlist>::iterator i = to_decode.begin();
        i != to_decode.end();
        ++i) {
-    assert(i->second.length() == obj_size);
+    assert(i->second.length() == total_chunk_size);
   }
 
-  if (obj_size == 0)
+  if (total_chunk_size == 0)
     return 0;
 
   set<int> need;
@@ -139,27 +71,12 @@ int ECUtil::decode(
     need.insert(i->first);
   }
 
-  for (uint64_t i = 0; i < obj_size; i += sinfo.get_chunk_size()) {
+  for (uint64_t i = 0; i < total_chunk_size; i += sinfo.get_chunk_size()) {
     map<int, bufferlist> chunks;
-    uint32_t first_stripe_sum = 0;
     for (map<int, bufferlist>::iterator j = to_decode.begin();
 	 j != to_decode.end();
 	 ++j) {
-      uint32_t this_stripe_sum = 0;
-      bufferlist bl;
-      bl.substr_of(j->second, i, sinfo.get_chunk_size());
-      int r = unpack_verify_chunk(
-	sinfo,
-	bl,
-	&(chunks[j->first]),
-	&this_stripe_sum);
-      assert(chunks[j->first].length() == sinfo.get_unpadded_chunk_size());
-      if (r < 0)
-	return r;
-      if (j == to_decode.begin())
-	first_stripe_sum = this_stripe_sum;
-      if (first_stripe_sum != this_stripe_sum)
-	return -EINVAL;
+      chunks[j->first].substr_of(j->second, i, sinfo.get_chunk_size());
     }
     map<int, bufferlist> out_bls;
     int r = ec_impl->decode(need, chunks, &out_bls);
@@ -168,18 +85,14 @@ int ECUtil::decode(
 	 j != out.end();
 	 ++j) {
       assert(out_bls.count(j->first));
-      assert(out_bls[j->first].length() == sinfo.get_unpadded_chunk_size());
-      pack_append_chunk(
-	sinfo,
-	first_stripe_sum,
-	out_bls[j->first],
-	j->second);
+      assert(out_bls[j->first].length() == sinfo.get_chunk_size());
+      j->second->claim_append(out_bls[j->first]);
     }
   }
   for (map<int, bufferlist*>::iterator i = out.begin();
        i != out.end();
        ++i) {
-    assert(i->second->length() == obj_size);
+    assert(i->second->length() == total_chunk_size);
   }
   return 0;
 }
@@ -204,18 +117,13 @@ int ECUtil::encode(
     map<int, bufferlist> encoded;
     bufferlist buf;
     buf.substr_of(in, i, sinfo.get_stripe_width());
-    uint32_t stripe_sum = buf.crc32c(0);
     int r = ec_impl->encode(want, buf, &encoded);
     assert(r == 0);
     for (map<int, bufferlist>::iterator i = encoded.begin();
 	 i != encoded.end();
 	 ++i) {
-      assert(i->second.length() == sinfo.get_unpadded_chunk_size());
-      pack_append_chunk(
-	sinfo,
-	stripe_sum,
-	i->second,
-	&((*out)[i->first]));
+      assert(i->second.length() == sinfo.get_chunk_size());
+      (*out)[i->first].claim_append(i->second);
     }
   }
 
@@ -228,4 +136,66 @@ int ECUtil::encode(
       logical_size);
   }
   return 0;
+}
+
+void ECUtil::HashInfo::encode(bufferlist &bl) const
+{
+  ENCODE_START(1, 1, bl);
+  ::encode(total_chunk_size, bl);
+  ::encode(cumulative_shard_hashes, bl);
+  ENCODE_FINISH(bl);
+}
+
+void ECUtil::HashInfo::decode(bufferlist::iterator &bl)
+{
+  DECODE_START(1, bl);
+  ::decode(total_chunk_size, bl);
+  ::decode(cumulative_shard_hashes, bl);
+  DECODE_FINISH(bl);
+}
+
+void ECUtil::HashInfo::dump(Formatter *f) const
+{
+  f->dump_unsigned("total_chunk_size", total_chunk_size);
+  f->open_object_section("cumulative_shard_hashes");
+  for (unsigned i = 0; i != cumulative_shard_hashes.size(); ++i) {
+    f->open_object_section("hash");
+    f->dump_unsigned("shard", i);
+    f->dump_unsigned("hash", cumulative_shard_hashes[i]);
+    f->close_section();
+  }
+  f->close_section();
+}
+
+void ECUtil::HashInfo::generate_test_instances(list<HashInfo*>& o)
+{
+  o.push_back(new HashInfo(3));
+  {
+    bufferlist bl;
+    bl.append_zero(20);
+    map<int, bufferlist> buffers;
+    buffers[0] = bl;
+    buffers[1] = bl;
+    buffers[2] = bl;
+    o.back()->append(0, buffers);
+    o.back()->append(20, buffers);
+  }
+  o.push_back(new HashInfo(4));
+}
+
+const string HINFO_KEY_PREFIX = "_hinfo_key_";
+
+string ECUtil::generate_hinfo_key_string(uint64_t size)
+{
+  char buf[100];
+  int r = snprintf(
+    buf, sizeof(buf), "%s%llx", HINFO_KEY_PREFIX.c_str(),
+    (long long unsigned)size);
+  return string(buf, r);
+}
+
+bool ECUtil::is_hinfo_key_string(const string &key)
+{
+  return key.size() >= HINFO_KEY_PREFIX.size() &&
+    (key.substr(0, HINFO_KEY_PREFIX.size()) == HINFO_KEY_PREFIX);
 }

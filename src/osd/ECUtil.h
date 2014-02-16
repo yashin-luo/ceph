@@ -18,9 +18,12 @@
 #include <map>
 #include <set>
 
+#include <memory>
 #include "erasure-code/ErasureCodeInterface.h"
 #include "include/buffer.h"
 #include "include/assert.h"
+#include "include/encoding.h"
+#include "common/Formatter.h"
 
 namespace ECUtil {
 
@@ -29,18 +32,6 @@ const uint64_t CHUNK_INFO = 8;
 const uint64_t CHUNK_PADDING = 8;
 const uint64_t CHUNK_OVERHEAD = 16; // INFO + PADDING
 
-static uint64_t determine_chunk_size(
-  uint64_t stripe_size,
-  uint64_t stripe_width) {
-  uint64_t unpadded = ((stripe_width / stripe_size) + CHUNK_OVERHEAD);
-  if (unpadded % CHUNK_ALIGNMENT) {
-    return unpadded - (unpadded % CHUNK_OVERHEAD) + CHUNK_OVERHEAD;
-  } else {
-    return unpadded;
-  }
-}
-
-
 class stripe_info_t {
   const uint64_t stripe_size;
   const uint64_t stripe_width;
@@ -48,7 +39,7 @@ class stripe_info_t {
 public:
   stripe_info_t(uint64_t stripe_size, uint64_t stripe_width)
     : stripe_size(stripe_size), stripe_width(stripe_width),
-      chunk_size(determine_chunk_size(stripe_size, stripe_width)) {
+      chunk_size(stripe_width / stripe_size) {
     assert(stripe_width % stripe_size == 0);
   }
   uint64_t get_stripe_width() const {
@@ -56,9 +47,6 @@ public:
   }
   uint64_t get_chunk_size() const {
     return chunk_size;
-  }
-  uint64_t get_unpadded_chunk_size() const {
-    return stripe_width / stripe_size;
   }
   uint64_t logical_to_prev_chunk_offset(uint64_t offset) const {
     return (offset / stripe_width) * chunk_size;
@@ -97,25 +85,6 @@ public:
   }
 };
 
-void pack_append_chunk(
-  const stripe_info_t &sinfo,
-  uint32_t stripe_sum,
-  bufferlist &raw_chunk,
-  bufferlist *packed_chunk);
-
-void unpack_chunk(
-  const stripe_info_t &sinfo,
-  bufferlist &packed_chunk,
-  bufferlist *raw_chunk,
-  uint32_t *stripe_sum = NULL,
-  uint32_t *chunk_sum = NULL);
-
-int unpack_verify_chunk(
-  const stripe_info_t &sinfo,
-  bufferlist &packed_chunk,
-  bufferlist *raw_chunk,
-  uint32_t *stripe_sum = NULL);
-
 int decode(
   const stripe_info_t &sinfo,
   ErasureCodeInterfaceRef &ec_impl,
@@ -134,5 +103,52 @@ int encode(
   bufferlist &in,
   const set<int> &want,
   map<int, bufferlist> *out);
+
+class HashInfo {
+  uint64_t total_chunk_size;
+  vector<uint32_t> cumulative_shard_hashes;
+public:
+  HashInfo() : total_chunk_size(0) {}
+  HashInfo(unsigned num_chunks)
+  : total_chunk_size(0),
+    cumulative_shard_hashes(num_chunks, 0) {}
+  void append(uint64_t old_size, map<int, bufferlist> &to_append) {
+    assert(to_append.size() == cumulative_shard_hashes.size());
+    assert(old_size == total_chunk_size);
+    uint64_t size_to_append = to_append.begin()->second.length();
+    for (map<int, bufferlist>::iterator i = to_append.begin();
+	 i != to_append.end();
+	 ++i) {
+      assert(size_to_append == i->second.length());
+      assert((unsigned)i->first < cumulative_shard_hashes.size());
+      uint32_t new_hash = i->second.crc32c(cumulative_shard_hashes[i->first]);
+      cumulative_shard_hashes[i->first] = new_hash;
+    }
+    total_chunk_size += size_to_append;
+  }
+  void clear() {
+    total_chunk_size = 0;
+    cumulative_shard_hashes = vector<uint32_t>(
+      cumulative_shard_hashes.size(),
+      0);
+  }
+  void encode(bufferlist &bl) const;
+  void decode(bufferlist::iterator &bl);
+  void dump(Formatter *f) const;
+  static void generate_test_instances(list<HashInfo*>& o);
+  uint32_t get_chunk_hash(int shard) const {
+    assert((unsigned)shard < cumulative_shard_hashes.size());
+    return cumulative_shard_hashes[shard];
+  }
+  uint64_t get_total_chunk_size() const {
+    return total_chunk_size;
+  }
 };
+typedef std::tr1::shared_ptr<HashInfo> HashInfoRef;
+
+string generate_hinfo_key_string(uint64_t size);
+bool is_hinfo_key_string(const string &key);
+
+};
+WRITE_CLASS_ENCODER(ECUtil::HashInfo)
 #endif

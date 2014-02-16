@@ -26,7 +26,6 @@ TEST(ECUtil, stripe_info_t)
 
   ECUtil::stripe_info_t s(ssize, swidth);
   ASSERT_EQ(s.get_stripe_width(), swidth);
-  ASSERT_EQ(s.get_unpadded_chunk_size(), swidth / ssize);
 
   ASSERT_EQ(s.logical_to_next_chunk_offset(0), 0);
   ASSERT_EQ(s.logical_to_next_chunk_offset(1), s.get_chunk_size());
@@ -57,4 +56,18 @@ TEST(ECUtil, stripe_info_t)
 
   ASSERT_EQ(s.offset_len_to_stripe_bounds(make_pair(swidth-10, (uint64_t)20)),
             make_pair((uint64_t)0, 2*swidth));
+}
+
+TEST(ECUtil, HashInfoKey)
+{
+  ASSERT_EQ(ECUtil::generate_hinfo_key_string(0xF),
+	    "_hinfo_key_f");
+  ASSERT_TRUE(
+    ECUtil::is_hinfo_key_string(ECUtil::generate_hinfo_key_string(0)));
+  ASSERT_FALSE(
+    ECUtil::is_hinfo_key_string("_hinfo_key"));
+  ASSERT_FALSE(
+    ECUtil::is_hinfo_key_string("_hinf"));
+  ASSERT_FALSE(
+    ECUtil::is_hinfo_key_string("a"));
 }
