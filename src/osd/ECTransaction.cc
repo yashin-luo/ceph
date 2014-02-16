@@ -22,8 +22,38 @@
 #include "ECUtil.h"
 #include "os/ObjectStore.h"
 
+struct AppendObjectsGenerator: public boost::static_visitor<void> {
+  typedef void result_type;
+  set<hobject_t> *out;
+  AppendObjectsGenerator(set<hobject_t> *out) : out(out) {}
+  void operator()(const ECTransaction::AppendOp &op) {
+    out->insert(op.oid);
+  }
+  void operator()(const ECTransaction::TouchOp &op) {}
+  void operator()(const ECTransaction::CloneOp &op) {
+    out->insert(op.source);
+    out->insert(op.target);
+  }
+  void operator()(const ECTransaction::RenameOp &op) {
+    out->insert(op.source);
+    out->insert(op.destination);
+  }
+  void operator()(const ECTransaction::StashOp &op) {}
+  void operator()(const ECTransaction::RemoveOp &op) {}
+  void operator()(const ECTransaction::SetAttrsOp &op) {}
+  void operator()(const ECTransaction::RmAttrOp &op) {}
+  void operator()(const ECTransaction::NoOp &op) {}
+};
+void ECTransaction::get_append_objects(
+  set<hobject_t> *out) const
+{
+  AppendObjectsGenerator gen(out);
+  reverse_visit(gen);
+}
+
 struct TransGenerator : public boost::static_visitor<void> {
   typedef void result_type;
+  map<hobject_t, ECUtil::HashInfoRef> &hash_infos;
 
   ErasureCodeInterfaceRef &ecimpl;
   const pg_t pgid;
@@ -34,6 +64,7 @@ struct TransGenerator : public boost::static_visitor<void> {
   set<hobject_t> *temp_removed;
   stringstream *out;
   TransGenerator(
+    map<hobject_t, ECUtil::HashInfoRef> &hash_infos,
     ErasureCodeInterfaceRef &ecimpl,
     pg_t pgid,
     const ECUtil::stripe_info_t &sinfo,
@@ -41,15 +72,14 @@ struct TransGenerator : public boost::static_visitor<void> {
     set<hobject_t> *temp_added,
     set<hobject_t> *temp_removed,
     stringstream *out)
-    : ecimpl(ecimpl), pgid(pgid),
+    : hash_infos(hash_infos),
+      ecimpl(ecimpl), pgid(pgid),
       sinfo(sinfo),
       trans(trans),
       temp_added(temp_added), temp_removed(temp_removed),
       out(out) {
-    for (map<shard_id_t, ObjectStore::Transaction>::iterator i = trans->begin();
-	 i != trans->end();
-	 ++i) {
-      want.insert(i->first);
+    for (unsigned i = 0; i < ecimpl->get_chunk_count(); ++i) {
+      want.insert(i);
     }
   }
 
@@ -90,6 +120,9 @@ struct TransGenerator : public boost::static_visitor<void> {
     assert(offset % sinfo.get_stripe_width() == 0);
     map<int, bufferlist> buffers;
 
+    assert(hash_infos.count(op.oid));
+    ECUtil::HashInfoRef hinfo = hash_infos[op.oid];
+
     // align
     if (bl.length() % sinfo.get_stripe_width())
       bl.append_zero(
@@ -98,6 +131,15 @@ struct TransGenerator : public boost::static_visitor<void> {
     assert(bl.length() - op.bl.length() < sinfo.get_stripe_width());
     int r = ECUtil::encode(
       sinfo, ecimpl, bl, want, &buffers);
+
+    hinfo->append(
+      sinfo.aligned_logical_offset_to_chunk_offset(op.off),
+      buffers);
+    bufferlist hbuf;
+    ::encode(
+      *hinfo,
+      hbuf);
+
     assert(r == 0);
     for (map<shard_id_t, ObjectStore::Transaction>::iterator i = trans->begin();
 	 i != trans->end();
@@ -111,9 +153,17 @@ struct TransGenerator : public boost::static_visitor<void> {
 	  offset),
 	enc_bl.length(),
 	enc_bl);
+      i->second.setattr(
+	get_coll_ct(i->first, op.oid),
+	ghobject_t(op.oid, ghobject_t::NO_GEN, i->first),
+	ECUtil::generate_hinfo_key_string(hinfo->get_total_chunk_size()),
+	hbuf);
     }
   }
   void operator()(const ECTransaction::CloneOp &op) {
+    assert(hash_infos.count(op.source));
+    assert(hash_infos.count(op.target));
+    *(hash_infos[op.target]) = *(hash_infos[op.source]);
     for (map<shard_id_t, ObjectStore::Transaction>::iterator i = trans->begin();
 	 i != trans->end();
 	 ++i) {
@@ -124,6 +174,10 @@ struct TransGenerator : public boost::static_visitor<void> {
     }
   }
   void operator()(const ECTransaction::RenameOp &op) {
+    assert(hash_infos.count(op.source));
+    assert(hash_infos.count(op.destination));
+    *(hash_infos[op.destination]) = *(hash_infos[op.source]);
+    hash_infos[op.source]->clear();
     for (map<shard_id_t, ObjectStore::Transaction>::iterator i = trans->begin();
 	 i != trans->end();
 	 ++i) {
@@ -135,6 +189,8 @@ struct TransGenerator : public boost::static_visitor<void> {
     }
   }
   void operator()(const ECTransaction::StashOp &op) {
+    if (hash_infos.count(op.oid))
+      hash_infos[op.oid]->clear();
     for (map<shard_id_t, ObjectStore::Transaction>::iterator i = trans->begin();
 	 i != trans->end();
 	 ++i) {
@@ -147,6 +203,8 @@ struct TransGenerator : public boost::static_visitor<void> {
     }
   }
   void operator()(const ECTransaction::RemoveOp &op) {
+    if (hash_infos.count(op.oid))
+      hash_infos[op.oid]->clear();
     for (map<shard_id_t, ObjectStore::Transaction>::iterator i = trans->begin();
 	 i != trans->end();
 	 ++i) {
@@ -181,6 +239,7 @@ struct TransGenerator : public boost::static_visitor<void> {
 
 
 void ECTransaction::generate_transactions(
+  map<hobject_t, ECUtil::HashInfoRef> &hash_infos,
   ErasureCodeInterfaceRef &ecimpl,
   pg_t pgid,
   const ECUtil::stripe_info_t &sinfo,
@@ -190,6 +249,7 @@ void ECTransaction::generate_transactions(
   stringstream *out) const
 {
   TransGenerator gen(
+    hash_infos,
     ecimpl,
     pgid,
     sinfo,

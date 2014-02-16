@@ -166,7 +166,18 @@ public:
       boost::apply_visitor(vis, *i);
     }
   }
+  template <typename T>
+  void reverse_visit(T &vis) const {
+    for (list<Op>::const_reverse_iterator i = ops.rbegin();
+	 i != ops.rend();
+	 ++i) {
+      boost::apply_visitor(vis, *i);
+    }
+  }
+  void get_append_objects(
+    set<hobject_t> *out) const;
   void generate_transactions(
+    map<hobject_t, ECUtil::HashInfoRef> &hash_infos,
     ErasureCodeInterfaceRef &ecimpl,
     pg_t pgid,
     const ECUtil::stripe_info_t &sinfo,
