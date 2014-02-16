@@ -1482,7 +1482,7 @@ int Objecter::recalc_op_target(Op *op)
 
     OSDSession *s = NULL;
     op->used_replica = false;
-    if (!acting.empty()) {
+    if (primary != -1) {
       int osd;
       bool read = is_read && !is_write;
       if (read && (op->flags & CEPH_OSD_FLAG_BALANCE_READS)) {
@@ -1559,7 +1559,7 @@ bool Objecter::recalc_linger_op_target(LingerOp *linger_op)
     ldout(cct, 10) << "recalc_linger_op_target tid " << linger_op->linger_id
 	     << " pgid " << pgid << " acting " << acting << dendl;
     
-    OSDSession *s = acting.size() ? get_session(primary) : NULL;
+    OSDSession *s = primary != -1 ? get_session(primary) : NULL;
     if (linger_op->session != s) {
       linger_op->session_item.remove_myself();
       linger_op->session = s;
@@ -2795,7 +2795,7 @@ int Objecter::recalc_command_target(CommandOp *c)
     int primary;
     vector<int> acting;
     osdmap->pg_to_acting_osds(c->target_pg, &acting, &primary);
-    if (!acting.empty())
+    if (primary != -1)
       s = get_session(primary);
   }
   if (c->session != s) {
