@@ -1600,6 +1600,8 @@ void ECBackend::rollback_append(
   ObjectStore::Transaction *t)
 {
   assert(old_size % sinfo.get_stripe_width() == 0);
+  assert(len % sinfo.get_stripe_width() == 0);
+  assert(len > 0);
   t->truncate(
     coll,
     ghobject_t(hoid, ghobject_t::NO_GEN, get_parent()->whoami_shard().shard),
@@ -1624,7 +1626,7 @@ void ECBackend::trim_append(
     ghobject_t(hoid, ghobject_t::NO_GEN, get_parent()->whoami_shard().shard),
     ECUtil::generate_hinfo_key_string(
       sinfo.aligned_logical_offset_to_chunk_offset(
-	off)));
+	off + len)));
 }
 
 void ECBackend::be_deep_scrub(

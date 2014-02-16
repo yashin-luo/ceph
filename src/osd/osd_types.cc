@@ -2250,10 +2250,10 @@ void ObjectModDesc::visit(Visitor *visitor) const
       ::decode(code, bp);
       switch (code) {
       case APPEND: {
-	uint64_t size, old_len;
-	::decode(size, bp);
-	::decode(old_len, bp);
-	visitor->append(size, old_len);
+	uint64_t off, len;
+	::decode(off, bp);
+	::decode(len, bp);
+	visitor->append(off, len);
 	break;
       }
       case SETATTRS: {

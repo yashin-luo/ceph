@@ -1754,13 +1754,14 @@ public:
     uint8_t _id(id);
     ::encode(_id, bl);
   }
-  void append(uint64_t old_size, uint64_t new_len) {
+  void append(uint64_t off, uint64_t len) {
     if (!can_local_rollback || stashed)
       return;
     ENCODE_START(1, 1, bl);
     append_id(APPEND);
-    ::encode(old_size, bl);
-    ::encode(new_len, bl);
+    assert(len > 0);
+    ::encode(off, bl);
+    ::encode(len, bl);
     ENCODE_FINISH(bl);
   }
   void setattrs(map<string, boost::optional<bufferlist> > &old_attrs) {

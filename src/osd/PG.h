@@ -782,13 +782,24 @@ public:
 	/* we already failed to rollback a previous item
          * and made the appropriate adjustments to the
          * missing set and/or store */
+	trim(entry);
 	return;
       }
       to_rollback[entry.soid].push_back(entry);
     }
     void cant_rollback(const pg_log_entry_t &entry) {
-      to_rollback.erase(entry.soid);
+      map<hobject_t, list<pg_log_entry_t> >::iterator i = to_rollback.find(entry.soid);
+      if (i != to_rollback.end()) {
+	to_trim.splice(
+	  to_trim.end(),
+	  i->second,
+	  i->second.begin(),
+	  i->second.end());
+	cannot_rollback.insert(entry.soid);
+	to_rollback.erase(i);
+      }
       cannot_rollback.insert(entry.soid);
+      trim(entry);
     }
     void trim(const pg_log_entry_t &entry) {
       to_trim.push_back(entry);

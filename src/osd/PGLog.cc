@@ -409,7 +409,6 @@ void PGLog::rewind_divergent_log(ObjectStore::Transaction& t, eversion_t newhead
        d != divergent.end();
        ++d) {
     merge_old_entry(t, *d, info, rollbacker);
-    rollbacker->trim(*d);
   }
 
   if (info.last_update < log.can_rollback_to)
@@ -550,7 +549,6 @@ void PGLog::merge_log(ObjectStore::Transaction& t,
 	 d != divergent.end();
 	 ++d) {
       merge_old_entry(t, *d, info, rollbacker);
-      rollbacker->trim(*d);
     }
 
     // We cannot rollback into the new log entries
