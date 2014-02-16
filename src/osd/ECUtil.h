@@ -111,7 +111,7 @@ public:
   HashInfo() : total_chunk_size(0) {}
   HashInfo(unsigned num_chunks)
   : total_chunk_size(0),
-    cumulative_shard_hashes(num_chunks, 0) {}
+    cumulative_shard_hashes(num_chunks, -1) {}
   void append(uint64_t old_size, map<int, bufferlist> &to_append) {
     assert(to_append.size() == cumulative_shard_hashes.size());
     assert(old_size == total_chunk_size);

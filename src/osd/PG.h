@@ -850,7 +850,7 @@ public:
 	pg->get_pgbackend()->rollback_create(*i, t);
 	pg->remove_snap_mapped_object(*t, *i);
       }
-      for (list<pg_log_entry_t>::reverse_iterator i = to_trim.begin();
+      for (list<pg_log_entry_t>::iterator i = to_trim.begin();
 	   i != to_trim.end();
 	   ++i) {
 	LogEntryTrimmer trimmer(i->soid, pg, t);

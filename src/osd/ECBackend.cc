@@ -1652,7 +1652,7 @@ void ECBackend::be_deep_scrub(
   const hobject_t &poid,
   ScrubMap::object &o,
   ThreadPool::TPHandle &handle) {
-  bufferhash h;
+  bufferhash h(-1);
   int r;
   uint64_t stride = cct->_conf->osd_deep_scrub_stride;
   if (stride % sinfo.get_chunk_size())
