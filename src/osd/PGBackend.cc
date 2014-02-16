@@ -86,7 +86,9 @@ void PGBackend::on_change(ObjectStore::Transaction *t)
        ++i) {
     dout(10) << __func__ << ": Removing oid "
 	     << *i << " from the temp collection" << dendl;
-    t->remove(get_temp_coll(t), *i);
+    t->remove(
+      get_temp_coll(t),
+      ghobject_t(*i, ghobject_t::NO_GEN, get_parent()->whoami_shard().shard));
   }
   temp_contents.clear();
   _on_change(t);
