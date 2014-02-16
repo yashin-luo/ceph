@@ -339,6 +339,8 @@ public:
 
     set<pg_shard_t> pending_commit;
     set<pg_shard_t> pending_apply;
+
+    map<hobject_t, ECUtil::HashInfoRef> unstable_hash_infos;
     ~Op() {
       delete t;
       delete on_local_applied_sync;
@@ -368,8 +370,6 @@ public:
     PushReplyOp &op,
     pg_shard_t from,
     RecoveryMessages *m);
-
-  set<hobject_t> unstable;
 
   map<tid_t, Op> tid_to_op_map; /// lists below point into here
   list<Op*> writing;
@@ -429,6 +429,9 @@ public:
 
 
   const ECUtil::stripe_info_t sinfo;
+  /// If modified, ensure that the ref is held until the update is applied
+  SharedPtrRegistry<hobject_t, ECUtil::HashInfo> unstable_hashinfo_registry;
+  ECUtil::HashInfoRef get_hash_info(const hobject_t &hoid);
 
   friend struct ReadCB;
   void check_op(Op *op);
@@ -451,9 +454,20 @@ public:
     set<pg_shard_t> *to_read   ///< [out] shards to read
     ); ///< @return error code, 0 on success
 
+  int objects_get_attrs(
+    const hobject_t &hoid,
+    map<string, bufferlist> *out);
+
   void rollback_append(
     const hobject_t &hoid,
     uint64_t old_size,
+    uint64_t new_len,
+    ObjectStore::Transaction *t);
+
+  void trim_append(
+    const hobject_t &hoid,
+    uint64_t off,
+    uint64_t len,
     ObjectStore::Transaction *t);
 
   bool scrub_supported() { return true; }
