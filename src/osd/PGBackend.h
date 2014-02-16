@@ -555,7 +555,7 @@
      const string &attr,
      bufferlist *out);
 
-   int objects_get_attrs(
+   virtual int objects_get_attrs(
      const hobject_t &hoid,
      map<string, bufferlist> *out);
 
