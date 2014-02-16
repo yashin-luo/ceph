@@ -1622,12 +1622,14 @@ void ECBackend::trim_append(
   uint64_t len,
   ObjectStore::Transaction *t)
 {
-  t->rmattr(
-    coll,
-    ghobject_t(hoid, ghobject_t::NO_GEN, get_parent()->whoami_shard().shard),
-    ECUtil::generate_hinfo_key_string(
-      sinfo.aligned_logical_offset_to_chunk_offset(
-	off)));
+  if (len > 0) {
+    t->rmattr(
+      coll,
+      ghobject_t(hoid, ghobject_t::NO_GEN, get_parent()->whoami_shard().shard),
+      ECUtil::generate_hinfo_key_string(
+	sinfo.aligned_logical_offset_to_chunk_offset(
+	  off)));
+  }
 }
 
 void ECBackend::discard_append(
@@ -1636,12 +1638,14 @@ void ECBackend::discard_append(
   uint64_t len,
   ObjectStore::Transaction *t)
 {
-  t->rmattr(
-    coll,
-    ghobject_t(hoid, ghobject_t::NO_GEN, get_parent()->whoami_shard().shard),
-    ECUtil::generate_hinfo_key_string(
-      sinfo.aligned_logical_offset_to_chunk_offset(
-	off + len)));
+  if (len > 0) {
+    t->rmattr(
+      coll,
+      ghobject_t(hoid, ghobject_t::NO_GEN, get_parent()->whoami_shard().shard),
+      ECUtil::generate_hinfo_key_string(
+	sinfo.aligned_logical_offset_to_chunk_offset(
+	  off + len)));
+  }
 }
 
 void ECBackend::be_deep_scrub(
