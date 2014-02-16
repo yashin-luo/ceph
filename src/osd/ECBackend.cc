@@ -1332,7 +1332,7 @@ ECUtil::HashInfoRef ECBackend::get_hash_info(
       ghobject_t(hoid, ghobject_t::NO_GEN, get_parent()->whoami_shard().shard),
       &st);
     ECUtil::HashInfo hinfo(ec_impl->get_chunk_count());
-    if (r >= 0) {
+    if (r >= 0 && st.st_size > 0) {
       dout(10) << __func__ << ": found on disk, size " << st.st_size << dendl;
       bufferlist bl;
       r = store->getattr(
