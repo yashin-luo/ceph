@@ -183,7 +183,7 @@ void ECUtil::HashInfo::generate_test_instances(list<HashInfo*>& o)
   o.push_back(new HashInfo(4));
 }
 
-const string HINFO_KEY_PREFIX = "_hinfo_key_";
+const string HINFO_KEY_PREFIX = "hinfo_key_";
 
 string ECUtil::generate_hinfo_key_string(uint64_t size)
 {
