@@ -1759,7 +1759,6 @@ public:
       return;
     ENCODE_START(1, 1, bl);
     append_id(APPEND);
-    assert(len > 0);
     ::encode(off, bl);
     ::encode(len, bl);
     ENCODE_FINISH(bl);
