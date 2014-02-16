@@ -507,6 +507,7 @@
    virtual void rollback_append(
      const hobject_t &hoid,
      uint64_t old_size,
+     uint64_t len,
      ObjectStore::Transaction *t);
 
    /// Unstash object to rollback stash
@@ -525,6 +526,14 @@
      const hobject_t &hoid,
      version_t stashed_version,
      ObjectStore::Transaction *t);
+
+   /// Trim append event
+   virtual void trim_append(
+     const hobject_t &hoid,
+     uint64_t off,
+     uint64_t len,
+     ObjectStore::Transaction *t) {}
+     
 
    /// List objects in collection
    int objects_list_partial(

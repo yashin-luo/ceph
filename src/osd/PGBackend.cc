@@ -36,9 +36,9 @@ struct RollbackVisitor : public ObjectModDesc::Visitor {
   RollbackVisitor(
     const hobject_t &hoid,
     PGBackend *pg) : hoid(hoid), pg(pg) {}
-  void append(uint64_t old_size) {
+  void append(uint64_t old_size, uint64_t len) {
     ObjectStore::Transaction temp;
-    pg->rollback_append(hoid, old_size, &temp);
+    pg->rollback_append(hoid, old_size, len, &temp);
     temp.append(t);
     temp.swap(t);
   }
@@ -221,6 +221,7 @@ void PGBackend::rollback_setattrs(
 void PGBackend::rollback_append(
   const hobject_t &hoid,
   uint64_t old_size,
+  uint64_t len,
   ObjectStore::Transaction *t) {
   t->truncate(
     coll,

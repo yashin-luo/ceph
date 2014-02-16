@@ -2250,9 +2250,10 @@ void ObjectModDesc::visit(Visitor *visitor) const
       ::decode(code, bp);
       switch (code) {
       case APPEND: {
-	uint64_t size;
+	uint64_t size, old_len;
 	::decode(size, bp);
-	visitor->append(size);
+	::decode(old_len, bp);
+	visitor->append(size, old_len);
 	break;
       }
       case SETATTRS: {
@@ -2290,10 +2291,11 @@ void ObjectModDesc::visit(Visitor *visitor) const
 struct DumpVisitor : public ObjectModDesc::Visitor {
   Formatter *f;
   DumpVisitor(Formatter *f) : f(f) {}
-  void append(uint64_t old_size) {
+  void append(uint64_t old_size, uint64_t len) {
     f->open_object_section("op");
     f->dump_string("code", "APPEND");
     f->dump_unsigned("old_size", old_size);
+    f->dump_unsigned("len", len);
     f->close_section();
   }
   void setattrs(map<string, boost::optional<bufferlist> > &attrs) {
@@ -2348,7 +2350,7 @@ void ObjectModDesc::generate_test_instances(list<ObjectModDesc*>& o)
   attrs[SS_ATTR];
   attrs["asdf"];
   o.push_back(new ObjectModDesc());
-  o.back()->append(100);
+  o.back()->append(100, 100);
   o.back()->setattrs(attrs);
   o.push_back(new ObjectModDesc());
   o.back()->rmobject(1001);
@@ -2359,7 +2361,7 @@ void ObjectModDesc::generate_test_instances(list<ObjectModDesc*>& o)
   o.back()->create();
   o.back()->setattrs(attrs);
   o.back()->mark_unrollbackable();
-  o.back()->append(1000);
+  o.back()->append(1000, 200);
 }
 
 void ObjectModDesc::encode(bufferlist &_bl) const

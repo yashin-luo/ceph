@@ -1727,7 +1727,7 @@ class ObjectModDesc {
 public:
   class Visitor {
   public:
-    virtual void append(uint64_t old_offset) {}
+    virtual void append(uint64_t old_offset, uint64_t len) {}
     virtual void setattrs(map<string, boost::optional<bufferlist> > &attrs) {}
     virtual void rmobject(version_t old_version) {}
     virtual void create() {}
@@ -1754,12 +1754,13 @@ public:
     uint8_t _id(id);
     ::encode(_id, bl);
   }
-  void append(uint64_t old_size) {
+  void append(uint64_t old_size, uint64_t new_len) {
     if (!can_local_rollback || stashed)
       return;
     ENCODE_START(1, 1, bl);
     append_id(APPEND);
     ::encode(old_size, bl);
+    ::encode(new_len, bl);
     ENCODE_FINISH(bl);
   }
   void setattrs(map<string, boost::optional<bufferlist> > &old_attrs) {

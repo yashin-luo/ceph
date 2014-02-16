@@ -742,6 +742,13 @@ public:
 	old_version,
 	t);
     }
+    void append(uint64_t off, uint64_t len) {
+      pg->get_pgbackend()->trim_append(
+	soid,
+	off,
+	len,
+	t);
+    }
   };
 
   struct SnapRollBacker : public ObjectModDesc::Visitor {
