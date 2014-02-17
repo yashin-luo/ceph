@@ -1192,7 +1192,7 @@ void ECBackend::submit_transaction(
       ObjectModDesc desc;
       map<string, boost::optional<bufferlist> > old_attrs;
       bufferlist old_hinfo;
-      ::encode(op->unstable_hash_infos[i->soid], old_hinfo);
+      ::encode(*(op->unstable_hash_infos[i->soid]), old_hinfo);
       old_attrs[ECUtil::get_hinfo_key()] = old_hinfo;
       desc.setattrs(old_attrs);
       i->mod_desc.swap(desc);
