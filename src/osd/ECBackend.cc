@@ -1600,7 +1600,7 @@ void ECBackend::rollback_append(
   ObjectStore::Transaction *t)
 {
   dout(10) << __func__ << ": trimming append on hoid "
-	   << hoid << " " << make_pair(off, len) << dendl;
+	   << hoid << " " << make_pair(old_size, len) << dendl;
   assert(old_size % sinfo.get_stripe_width() == 0);
   assert(len % sinfo.get_stripe_width() == 0);
   t->truncate(
