@@ -9241,7 +9241,6 @@ int ReplicatedPG::recover_primary(int max, ThreadPool::TPHandle &handle)
 					      get_osdmap()->get_epoch(),
 					      info.last_complete),
 					    new C_OSD_OndiskWriteUnlock(obc));
-	      ++started;
 	      continue;
 	    }
 	  } else {
