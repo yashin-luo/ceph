@@ -204,8 +204,20 @@ void PGBackend::rollback_setattrs(
        i != old_attrs.end();
        ++i) {
     if (i->second) {
+      dout(10) << __func__ << ": resetting attr " << i->first << " on oid "
+	       << hoid << dendl;
+      if (ECUtil::is_hinfo_key_string(i->first)) {
+	bufferlist::iterator bp = i->second.get().begin();
+	ECUtil::HashInfo hinfo;
+	::decode(hinfo, bp);
+	dout(10) << __func__ << ": hinfo key for oid " << hoid
+		 << ", resetting to hinfo with total_size "
+		 << hinfo.get_total_chunk_size() << dendl;
+      }
       to_set[i->first] = i->second.get();
     } else {
+      dout(10) << __func__ << ": removing attr " << i->first << " on oid "
+	       << hoid << dendl;
       t->rmattr(
 	coll,
 	ghobject_t(hoid, ghobject_t::NO_GEN, get_parent()->whoami_shard().shard),
