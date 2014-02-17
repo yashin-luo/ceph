@@ -1599,6 +1599,8 @@ void ECBackend::rollback_append(
   uint64_t len,
   ObjectStore::Transaction *t)
 {
+  dout(10) << __func__ << ": trimming append on hoid "
+	   << hoid << " " << make_pair(off, len) << dendl;
   assert(old_size % sinfo.get_stripe_width() == 0);
   assert(len % sinfo.get_stripe_width() == 0);
   t->truncate(
@@ -1622,6 +1624,8 @@ void ECBackend::trim_append(
   uint64_t len,
   ObjectStore::Transaction *t)
 {
+  dout(10) << __func__ << ": trimming append on hoid "
+	   << hoid << " " << make_pair(off, len) << dendl;
   if (len > 0) {
     t->rmattr(
       coll,
@@ -1638,6 +1642,8 @@ void ECBackend::discard_append(
   uint64_t len,
   ObjectStore::Transaction *t)
 {
+  dout(10) << __func__ << ": discarding append on hoid "
+	   << hoid << " " << make_pair(off, len) << dendl;
   if (len > 0) {
     t->rmattr(
       coll,

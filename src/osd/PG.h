@@ -804,7 +804,7 @@ public:
 	/* we already failed to rollback a previous item
          * and made the appropriate adjustments to the
          * missing set and/or store */
-	trim(entry);
+	discard(entry);
 	return;
       }
       to_rollback[entry.soid].push_back(entry);
