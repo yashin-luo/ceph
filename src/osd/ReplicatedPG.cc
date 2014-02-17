@@ -8611,6 +8611,10 @@ void ReplicatedPG::mark_all_unfound_lost(int what)
 	++m;
 	pg_log.revise_need(oid, info.last_update);
 	missing_loc.revise_need(oid, info.last_update);
+	if (missing.is_missing(oid) &&
+	    missing.missing.find(oid)->second.have == prev) {
+	  missing_loc.add_location(oid, pg_whoami);
+	}
 	for (map<pg_shard_t, pg_missing_t>::iterator i = peer_missing.begin();
 	     i != peer_missing.end();
 	     ++i) {
