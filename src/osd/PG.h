@@ -376,6 +376,10 @@ public:
 	}
       }
     }
+    void revise_need(const hobject_t &hoid, eversion_t need) {
+      assert(needs_recovery(hoid));
+      needs_recovery_map[hoid].need = need;
+    }
 
     /// Adds info about a possible recovery source
     bool add_source_info(

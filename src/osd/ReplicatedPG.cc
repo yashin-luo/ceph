@@ -8610,6 +8610,14 @@ void ReplicatedPG::mark_all_unfound_lost(int what)
 	// we are now missing the new version; recovery code will sort it out.
 	++m;
 	pg_log.revise_need(oid, info.last_update);
+	missing_loc.revise_need(oid, info.last_update);
+	for (map<pg_shard_t, pg_missing_t>::iterator i = peer_missing.begin();
+	     i != peer_missing.end();
+	     ++i) {
+	  if (i->second.missing[oid].have == prev) {
+	    missing_loc.add_location(oid, i->first);
+	  }
+	}
 	break;
       }
       /** fall-thru **/
@@ -8628,6 +8636,7 @@ void ReplicatedPG::mark_all_unfound_lost(int what)
 	  assert(0 == "not implemented.. tho i'm not sure how useful it really would be.");
 	}
 	pg_log.missing_rm(m++);
+	missing_loc.recovered(oid);
       }
       break;
 
@@ -8992,7 +9001,6 @@ void PG::MissingLoc::check_recovery_sources(const OSDMapRef osdmap)
 	if (now_down.count(*q)) {
 	  p->second.erase(q++);
 	} else {
-	  assert(missing_loc_sources.count(*q));
 	  ++q;
 	}
       if (p->second.empty())
