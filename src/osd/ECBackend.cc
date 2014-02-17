@@ -1180,8 +1180,8 @@ void ECBackend::submit_transaction(
 	get_hash_info(*i)));
   }
 
-  for (vector<pg_log_entry_t>::iterator i = op.log_entries.begin();
-       i != op.log_entries.end();
+  for (vector<pg_log_entry_t>::iterator i = op->log_entries.begin();
+       i != op->log_entries.end();
        ++i) {
     MustPrependHashInfo vis;
     i->mod_desc.visit(&vis);
