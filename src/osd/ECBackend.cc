@@ -374,7 +374,6 @@ void ECBackend::handle_recovery_read_complete(
       bufferlist::iterator bp = op.xattrs[ECUtil::get_hinfo_key()].begin();
       ::decode(hinfo, bp);
     }
-    assert(!unstable_hashinfo_registry.lookup(hoid));
     op.hinfo = unstable_hashinfo_registry.lookup_or_create(hoid, hinfo);
   }
   assert(op.xattrs.size());
