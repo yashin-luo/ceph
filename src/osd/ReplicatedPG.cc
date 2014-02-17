@@ -8611,6 +8611,7 @@ void ReplicatedPG::mark_all_unfound_lost(int what)
 	++m;
 	pg_log.revise_need(oid, info.last_update);
 	missing_loc.revise_need(oid, info.last_update);
+#if 0
 	if (missing.is_missing(oid) &&
 	    missing.missing.find(oid)->second.have == prev) {
 	  missing_loc.add_location(oid, pg_whoami);
@@ -8618,10 +8619,12 @@ void ReplicatedPG::mark_all_unfound_lost(int what)
 	for (map<pg_shard_t, pg_missing_t>::iterator i = peer_missing.begin();
 	     i != peer_missing.end();
 	     ++i) {
-	  if (i->second.missing[oid].have == prev) {
+	  if (i->second.missing.is_missing(oid) &&
+	    i->second.missing[oid].have == prev) {
 	    missing_loc.add_location(oid, i->first);
 	  }
 	}
+#endif
 	break;
       }
       /** fall-thru **/
@@ -9251,6 +9254,7 @@ int ReplicatedPG::recover_primary(int max, ThreadPool::TPHandle &handle)
 					      get_osdmap()->get_epoch(),
 					      info.last_complete),
 					    new C_OSD_OndiskWriteUnlock(obc));
+	      ++started;
 	      continue;
 	    }
 	  } else {
