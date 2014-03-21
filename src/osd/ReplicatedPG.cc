@@ -5330,7 +5330,7 @@ int ReplicatedPG::fill_in_copy_get(
 
   dout(20) << " cursor.is_complete=" << cursor.is_complete()
 	   << " " << out_attrs.size() << " attrs"
-	   << " " << bl.length() << " bytes"
+	   << " " << result << " bytes"
 	   << " " << reply_obj.omap_header.length() << " omap header bytes"
 	   << " " << out_omap.size() << " keys"
 	   << dendl;
