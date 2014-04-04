@@ -1497,6 +1497,12 @@ void Monitor::handle_probe_reply(MMonProbe *m)
   } else {
     if (monmap->contains(m->name)) {
       dout(10) << " mon." << m->name << " is outside the quorum" << dendl;
+      if (monmap->get_addr(name).is_blank_ip() && monmap->get_epoch() > 0) {
+        dout(10) << " mon." << m->name
+                 << " has a blank ip -- ignoring until it joins" << dendl;
+        m->put();
+        return;
+      }
       outside_quorum.insert(m->name);
     } else {
       dout(10) << " mostly ignoring mon." << m->name << ", not part of monmap" << dendl;
