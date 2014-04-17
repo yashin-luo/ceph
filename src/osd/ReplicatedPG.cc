@@ -10595,6 +10595,7 @@ void ReplicatedPG::hit_set_persist()
   ctx->new_snapset.head_exists = true;
 
   ctx->delta_stats.num_objects++;
+  ctx->delta_stats.num_objects_hit_set_archive++;
   ctx->delta_stats.num_bytes += bl.length();
 
   bufferlist bss;
@@ -10669,6 +10670,7 @@ void ReplicatedPG::hit_set_trim(RepGather *repop, unsigned max)
       &st);
     assert(r == 0);
     --repop->ctx->delta_stats.num_objects;
+    --repop->ctx->delta_stats.num_objects_hit_set_archive;
     repop->ctx->delta_stats.num_bytes -= st.st_size;
   }
 }
@@ -11040,10 +11042,10 @@ void ReplicatedPG::agent_choose_mode()
 
   uint64_t num_user_objects = info.stats.stats.sum.num_objects;
 
-  // adjust (effective) user objects down based on the (max) number
+  // adjust (effective) user objects down based on the number
   // of HitSet objects, which should not count toward our total since
   // they cannot be flushed.
-  uint64_t unflushable = pool.info.hit_set_count;
+  uint64_t unflushable = info.stats.stats.sum.num_objects_hit_set_archive;
 
   // also exclude omap objects if ec backing pool
   const pg_pool_t *base_pool = get_osdmap()->get_pg_pool(pool.info.tier_of);
@@ -11261,6 +11263,9 @@ void ReplicatedPG::_scrub(ScrubMap& scrubmap)
     if (soid.snap != CEPH_SNAPDIR)
       stat.num_objects++;
 
+    if (soid.nspace == cct->_conf->osd_hit_set_namespace)
+      stat.num_objects_hit_set_archive++;
+
     // new snapset?
     if (soid.snap == CEPH_SNAPDIR ||
 	soid.snap == CEPH_NOSNAP) {
@@ -11459,6 +11464,7 @@ void ReplicatedPG::_scrub_finish()
 	   << scrub_cstat.sum.num_object_clones << "/" << info.stats.stats.sum.num_object_clones << " clones, "
 	   << scrub_cstat.sum.num_objects_dirty << "/" << info.stats.stats.sum.num_objects_dirty << " dirty, "
 	   << scrub_cstat.sum.num_objects_omap << "/" << info.stats.stats.sum.num_objects_omap << " omap, "
+	   << scrub_cstat.sum.num_objects_hit_set_archive << "/" << info.stats.stats.sum.num_objects_hit_set_archive << " hit_set_archive, "
 	   << scrub_cstat.sum.num_bytes << "/" << info.stats.stats.sum.num_bytes << " bytes."
 	   << dendl;
 
@@ -11468,6 +11474,8 @@ void ReplicatedPG::_scrub_finish()
        !info.stats.dirty_stats_invalid) ||
       (scrub_cstat.sum.num_objects_omap != info.stats.stats.sum.num_objects_omap &&
        !info.stats.omap_stats_invalid) ||
+      (scrub_cstat.sum.num_objects_hit_set_archive != info.stats.stats.sum.num_objects_hit_set_archive &&
+       !info.stats.hitset_stats_invalid) ||
       scrub_cstat.sum.num_whiteouts != info.stats.stats.sum.num_whiteouts ||
       scrub_cstat.sum.num_bytes != info.stats.stats.sum.num_bytes) {
     osd->clog.error() << info.pgid << " " << mode
@@ -11476,6 +11484,7 @@ void ReplicatedPG::_scrub_finish()
 		      << scrub_cstat.sum.num_object_clones << "/" << info.stats.stats.sum.num_object_clones << " clones, "
 		      << scrub_cstat.sum.num_objects_dirty << "/" << info.stats.stats.sum.num_objects_dirty << " dirty, "
 		      << scrub_cstat.sum.num_objects_omap << "/" << info.stats.stats.sum.num_objects_omap << " omap, "
+		      << scrub_cstat.sum.num_objects_hit_set_archive << "/" << info.stats.stats.sum.num_objects_hit_set_archive << " hit_set_archive, "
 		      << scrub_cstat.sum.num_whiteouts << "/" << info.stats.stats.sum.num_whiteouts << " whiteouts, "
 		      << scrub_cstat.sum.num_bytes << "/" << info.stats.stats.sum.num_bytes << " bytes.\n";
     ++scrubber.shallow_errors;
@@ -11485,6 +11494,7 @@ void ReplicatedPG::_scrub_finish()
       info.stats.stats = scrub_cstat;
       info.stats.dirty_stats_invalid = false;
       info.stats.omap_stats_invalid = false;
+      info.stats.hitset_stats_invalid = false;
       publish_stats_to_osd();
       share_pg_info();
     }
