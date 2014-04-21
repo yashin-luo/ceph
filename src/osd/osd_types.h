@@ -1125,6 +1125,7 @@ struct object_stat_sum_t {
   int64_t num_objects_dirty;
   int64_t num_whiteouts;
   int64_t num_objects_omap;
+  int64_t num_objects_hit_set_archive;
 
   object_stat_sum_t()
     : num_bytes(0),
@@ -1138,7 +1139,8 @@ struct object_stat_sum_t {
       num_keys_recovered(0),
       num_objects_dirty(0),
       num_whiteouts(0),
-      num_objects_omap(0)
+      num_objects_omap(0),
+      num_objects_hit_set_archive(0)
   {}
 
   void floor(int64_t f) {
@@ -1162,7 +1164,42 @@ struct object_stat_sum_t {
     FLOOR(num_keys_recovered);
     FLOOR(num_objects_dirty);
     FLOOR(num_whiteouts);
+    FLOOR(num_objects_omap);
+    FLOOR(num_objects_hit_set_archive);
 #undef FLOOR
+  }
+
+  void split(vector<object_stat_sum_t> &out) const {
+#define SPLIT(PARAM)                            \
+    for (unsigned i = 0; i < out.size(); ++i) { \
+      out[i].PARAM = PARAM / out.size();        \
+      if (i < (PARAM % out.size())) {           \
+	out[i].PARAM++;                         \
+      }                                         \
+    }                                           \
+
+    SPLIT(num_bytes);
+    SPLIT(num_objects);
+    SPLIT(num_object_clones);
+    SPLIT(num_object_copies);
+    SPLIT(num_objects_missing_on_primary);
+    SPLIT(num_objects_degraded);
+    SPLIT(num_objects_unfound);
+    SPLIT(num_rd);
+    SPLIT(num_rd_kb);
+    SPLIT(num_wr);
+    SPLIT(num_wr_kb);
+    SPLIT(num_scrub_errors);
+    SPLIT(num_shallow_scrub_errors);
+    SPLIT(num_deep_scrub_errors);
+    SPLIT(num_objects_recovered);
+    SPLIT(num_bytes_recovered);
+    SPLIT(num_keys_recovered);
+    SPLIT(num_objects_dirty);
+    SPLIT(num_whiteouts);
+    SPLIT(num_objects_omap);
+    SPLIT(num_objects_hit_set_archive);
+#undef SPLIT
   }
 
   void clear() {
@@ -1293,6 +1330,7 @@ struct pg_stat_t {
   /// maintained starting from pool creation)
   bool dirty_stats_invalid;
   bool omap_stats_invalid;
+  bool hitset_stats_invalid;
 
   /// up, acting primaries
   int up_primary;

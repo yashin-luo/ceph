@@ -1536,6 +1536,7 @@ void PG::activate(ObjectStore::Transaction& t,
 	pi.last_complete = info.last_update;
 	pi.last_backfill = hobject_t();
 	pi.history = info.history;
+	pi.hit_set = info.hit_set;
 	pi.stats.stats.clear();
 
 	m = new MOSDPGLog(
@@ -6591,6 +6592,7 @@ boost::statechart::result PG::RecoveryState::Stray::react(const MInfoRec& infoev
     ObjectStore::Transaction* t = context<RecoveryMachine>().get_cur_transaction();
     pg->rewind_divergent_log(*t, infoevt.info.last_update);
     pg->info.stats = infoevt.info.stats;
+    pg->info.hit_set = infoevt.info.hit_set;
   }
   
   assert(infoevt.info.last_update == pg->info.last_update);
@@ -6910,7 +6912,7 @@ boost::statechart::result PG::RecoveryState::GetLog::react(const MLogRec& logevt
 	     << "non-auth_log_shard osd." << logevt.from << dendl;
     return discard_event();
   }
-  dout(10) << "GetLog: recieved master log from osd" 
+  dout(10) << "GetLog: received master log from osd"
 	   << logevt.from << dendl;
   msg = logevt.msg;
   post_event(GotLog());
@@ -7375,6 +7377,7 @@ PG::PriorSet::PriorSet(bool ec_pool,
 	down.insert(o);
       } else if (pinfo->lost_at > interval.first) {
 	dout(10) << "build_prior  prior osd." << o << " is down, but lost_at " << pinfo->lost_at << dendl;
+	up_now.insert(so);
 	down.insert(o);
       } else {
 	dout(10) << "build_prior  prior osd." << o << " is down" << dendl;
