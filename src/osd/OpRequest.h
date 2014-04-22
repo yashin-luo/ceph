@@ -90,6 +90,7 @@ private:
 
 protected:
   void _dump_op_descriptor(ostream& stream) const;
+  void _unregistered();
 
 public:
   bool send_map_update;
