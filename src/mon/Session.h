@@ -35,6 +35,14 @@ struct Subscription {
   
   Subscription(MonSession *s, const string& t) : session(s), type(t), type_item(this),
 						 next(0), onetime(false), incremental_onetime(false) {};
+
+  struct Handler {
+    virtual void check_sub(Subscription *sub) = 0;
+    virtual void check_subs() {
+      assert(0 == "check_subs() not implemented");
+    }
+    virtual ~Handler() { }
+  };
 };
 
 struct MonSession : public RefCountedObject {
