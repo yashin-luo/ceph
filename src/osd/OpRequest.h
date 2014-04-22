@@ -88,6 +88,9 @@ private:
 
   OpRequest(Message *req, OpTracker *tracker);
 
+protected:
+  void _dump_op_descriptor(ostream& stream) const;
+
 public:
   bool send_map_update;
   epoch_t sent_epoch;
