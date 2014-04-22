@@ -28,7 +28,8 @@ using namespace std;
 
 class MMonCommand;
 
-class LogMonitor : public PaxosService {
+class LogMonitor : public PaxosService,
+                   public Subscription::Handler {
 private:
   multimap<utime_t,LogEntry> pending_log;
   LogSummary pending_summary, summary;
@@ -83,8 +84,8 @@ private:
   
   void tick();  // check state, take actions
 
-  void check_subs();
-  void check_sub(Subscription *s);
+  virtual void check_subs();
+  virtual void check_sub(Subscription *s);
 
   /**
    * translate log sub name ('log-info') to integer id

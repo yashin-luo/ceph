@@ -42,7 +42,8 @@ class MGetPoolStats;
 class RatioMonitor;
 class TextTable;
 
-class PGMonitor : public PaxosService {
+class PGMonitor : public PaxosService,
+                  public Subscription::Handler {
 public:
   PGMap pg_map;
 
@@ -200,7 +201,7 @@ public:
 			     list<pair<health_status_t,string> > *detail,
 			     const set<int>& s, const char *desc, health_status_t sev) const;
 
-  void check_sub(Subscription *sub);
+  virtual void check_sub(Subscription *sub);
 
 private:
   // no copying allowed

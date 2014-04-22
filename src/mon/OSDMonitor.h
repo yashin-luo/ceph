@@ -120,7 +120,8 @@ struct failure_info_t {
   }
 };
 
-class OSDMonitor : public PaxosService {
+class OSDMonitor : public PaxosService,
+                   public Subscription::Handler {
 public:
   OSDMap osdmap;
 
@@ -380,8 +381,8 @@ private:
   void dump_info(Formatter *f);
   int dump_osd_metadata(int osd, Formatter *f, ostream *err);
 
-  void check_subs();
-  void check_sub(Subscription *sub);
+  virtual void check_subs();
+  virtual void check_sub(Subscription *sub);
 
   void add_flag(int flag) {
     if (!(osdmap.flags & flag)) {

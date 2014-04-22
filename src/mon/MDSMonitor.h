@@ -36,7 +36,8 @@ class MMDSGetMap;
 class MMonCommand;
 class MMDSLoadTargets;
 
-class MDSMonitor : public PaxosService {
+class MDSMonitor : public PaxosService,
+                   public Subscription::Handler {
  public:
   // mds maps
   MDSMap mdsmap;          // current
@@ -119,8 +120,8 @@ public:
 
   void dump_info(Formatter *f);
 
-  void check_subs();
-  void check_sub(Subscription *sub);
+  virtual void check_subs();
+  virtual void check_sub(Subscription *sub);
 
 };
 

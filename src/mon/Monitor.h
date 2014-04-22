@@ -106,7 +106,8 @@ struct MonCommand;
 
 #define COMPAT_SET_LOC "feature_set"
 
-class Monitor : public Dispatcher {
+class Monitor : public Dispatcher,
+                public Subscription::Handler {
 public:
   // me
   string name;
@@ -607,8 +608,8 @@ public:
   MonSessionMap session_map;
   AdminSocketHook *admin_hook;
 
-  void check_subs();
-  void check_sub(Subscription *sub);
+  virtual void check_subs();
+  virtual void check_sub(Subscription *sub);
 
   void send_latest_monmap(Connection *con);
 
