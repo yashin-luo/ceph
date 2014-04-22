@@ -3510,28 +3510,38 @@ void Monitor::handle_subscribe(MMonSubscribe *m)
     if ((p->second.flags & CEPH_SUBSCRIBE_ONETIME) == 0)
       reply = true;
 
-    session_map.add_update_sub(s, p->first, p->second.start, 
-			       p->second.flags & CEPH_SUBSCRIBE_ONETIME,
-			       m->get_connection()->has_feature(CEPH_FEATURE_INCSUBOSDMAP));
+    Subscription::Handler *handler = NULL;
 
     if (p->first == "mdsmap") {
       if ((int)s->is_capable("mds", MON_CAP_R)) {
-        mdsmon()->check_sub(s->sub_map["mdsmap"]);
+        handler = mdsmon();
       }
     } else if (p->first == "osdmap") {
       if ((int)s->is_capable("osd", MON_CAP_R)) {
-        osdmon()->check_sub(s->sub_map["osdmap"]);
+        handler = osdmon();
       }
     } else if (p->first == "osd_pg_creates") {
       if ((int)s->is_capable("osd", MON_CAP_W)) {
-	pgmon()->check_sub(s->sub_map["osd_pg_creates"]);
+        handler = pgmon();
       }
     } else if (p->first == "monmap") {
-      check_sub(s->sub_map["monmap"]);
+      handler = this;
     } else if (logmon()->sub_name_to_id(p->first) >= 0) {
-      logmon()->check_sub(s->sub_map[p->first]);
+      handler = logmon();
     }
+
+    if (!handler) {
+      dout(1) << __func__ << " unknown subscription '" << p->first << "'" << dendl;
+      goto out;
+    }
+
+    session_map.add_update_sub(s, p->first, p->second.start,
+			       p->second.flags & CEPH_SUBSCRIBE_ONETIME,
+			       m->get_connection()->has_feature(CEPH_FEATURE_INCSUBOSDMAP));
+
+    handler->check_sub(s->sub_map[p->first]);
   }
+
 
   // ???
 
@@ -3539,6 +3549,7 @@ void Monitor::handle_subscribe(MMonSubscribe *m)
     messenger->send_message(new MMonSubscribeAck(monmap->get_fsid(), (int)g_conf->mon_subscribe_interval),
 			    m->get_source_inst());
 
+out:
   s->put();
   m->put();
 }
