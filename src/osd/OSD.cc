@@ -13,6 +13,10 @@
  */
 #include "acconfig.h"
 
+#ifdef HAVE_SYSTEMTAP
+#include "osd_probes.h"
+#endif
+
 #include <fstream>
 #include <iostream>
 #include <errno.h>
@@ -7731,6 +7735,12 @@ struct send_map_on_destruct {
 void OSD::handle_op(OpRequestRef op, OSDMapRef osdmap)
 {
   MOSDOp *m = static_cast<MOSDOp*>(op->get_req());
+  #if HAVE_SYSTEMTAP
+  stringstream ss;
+  ss << *m;
+  CEPH_OSD_START_OP(ss.str().c_str());
+  #endif
+
   assert(m->get_header().type == CEPH_MSG_OSD_OP);
   if (op_is_discardable(m)) {
     dout(10) << " discardable " << *m << dendl;

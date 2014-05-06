@@ -22,6 +22,7 @@ include json_spirit/Makefile.am
 include log/Makefile.am
 include perfglue/Makefile.am
 include common/Makefile.am
+include optracker/Makefile.am
 include msg/Makefile.am
 include messages/Makefile.am
 include include/Makefile.am
@@ -41,7 +42,7 @@ ceph_mon_LDADD = $(LIBMON) $(LIBOS) $(CEPH_GLOBAL) $(LIBCOMMON)
 bin_PROGRAMS += ceph-mon
 
 ceph_osd_SOURCES = ceph_osd.cc
-ceph_osd_LDADD = $(LIBOSD) $(CEPH_GLOBAL) $(LIBCOMMON)
+ceph_osd_LDADD = $(LIBOSD) $(OSDPROBELDADD) $(CEPH_GLOBAL) $(LIBCOMMON) $(LIBOPTRACKER) $(OPTRACKERPROBELDADD)
 bin_PROGRAMS += ceph-osd
 
 ceph_mds_SOURCES = ceph_mds.cc

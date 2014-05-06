@@ -30,7 +30,7 @@ debug_level=0
 verbose=0
 profile=0
 CONFIGURE_FLAGS=""
-while getopts  "d:e:hHTPjpnvO:" flag
+while getopts  "d:e:hHTPjspnvO:" flag
 do
     case $flag in
     d) debug_level=$OPTARG;;
@@ -48,6 +48,8 @@ do
     T) CONFIGURE_FLAGS="$CONFIGURE_FLAGS --without-tcmalloc";;
 
     j) CONFIGURE_FLAGS="$CONFIGURE_FLAGS --enable-cephfs-java";;
+
+    s) CONFIGURE_FLAGS="$CONFIGURE_FLAGS --enable-systemtap";;
 
     v) verbose=1;;
 

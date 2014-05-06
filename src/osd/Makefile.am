@@ -1,3 +1,14 @@
+if ENABLE_SYSTEMTAP
+osd/osd_probes.h: osd/osd_probes.d
+	$(DTRACE) -C -h -s $< -o $@
+osd/osd_probes.o: osd/osd_probes.d
+	$(DTRACE) -C -G -s $< -o $@
+
+OSDPROBELDADD = osd/osd_probes.o
+else
+OSDPROBELDADD =
+endif
+
 libosd_la_SOURCES = \
 	osd/PG.cc \
 	osd/PGLog.cc \
@@ -19,7 +30,14 @@ libosd_la_SOURCES = \
 	osd/osd_types.cc \
 	osd/ECUtil.cc \
 	objclass/class_api.cc
+
 libosd_la_LIBADD = $(LIBOSDC) $(LIBOS)
+
+if ENABLE_SYSTEMTAP
+libosd_la_DEPS = osd/osd_probes.h osd/osd_probes.o
+BUILT_SOURCES += osd/osd_probes.h
+endif
+
 noinst_LTLIBRARIES += libosd.la
 
 noinst_HEADERS += \

@@ -1,0 +1,6 @@
+probe ceph_osd.op_event =
+			process("ceph-osd").provider("ceph_osd").mark("op_event")
+{
+			reqid = user_string($arg1)
+			event = user_string($arg2)
+}
