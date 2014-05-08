@@ -1035,9 +1035,12 @@ void ReplicatedPG::calc_trim_to()
       min_last_complete_ondisk != pg_trim_to &&
       pg_log.get_log().approx_size() > target) {
     size_t num_to_trim = pg_log.get_log().approx_size() - target;
+    dout(10) << __func__ << ": num_trim_to is " << num_to_trim << dendl;
     list<pg_log_entry_t>::const_iterator it = pg_log.get_log().log.begin();
     eversion_t new_trim_to;
     for (size_t i = 0; i < num_to_trim; ++i) {
+      assert(it != pg_log.get_log().log.end());
+      dout(20) << __func__ << ": checking " << *it << dendl;
       new_trim_to = it->version;
       ++it;
       if (new_trim_to > min_last_complete_ondisk) {
