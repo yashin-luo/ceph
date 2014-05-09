@@ -8014,20 +8014,25 @@ PGRef OSD::OpWQ::_dequeue()
 
 void OSD::OpWQ::_process(PGRef pg, ThreadPool::TPHandle &handle)
 {
-  pg->lock_suspend_timeout(handle);
+  handle.suspend_tp_timeout();
   OpRequestRef op;
   {
-    Mutex::Locker l(qlock);
-    if (!pg_for_processing.count(&*pg)) {
-      pg->unlock();
-      return;
+    Mutex::Locker l(process_lock);
+    {
+      Mutex::Locker l(qlock);
+      if (!pg_for_processing.count(&*pg)) {
+	handle.reset_tp_timeout();
+	return;
+      }
+      assert(pg_for_processing[&*pg].size());
+      op = pg_for_processing[&*pg].front();
+      pg_for_processing[&*pg].pop_front();
+      if (!(pg_for_processing[&*pg].size()))
+	pg_for_processing.erase(&*pg);
     }
-    assert(pg_for_processing[&*pg].size());
-    op = pg_for_processing[&*pg].front();
-    pg_for_processing[&*pg].pop_front();
-    if (!(pg_for_processing[&*pg].size()))
-      pg_for_processing.erase(&*pg);
+    pg->lock(op.get());
   }
+  handle.reset_tp_timeout();
 
   lgeneric_subdout(osd->cct, osd, 30) << "dequeue status: ";
   Formatter *f = new_formatter("json");
@@ -8039,7 +8044,7 @@ void OSD::OpWQ::_process(PGRef pg, ThreadPool::TPHandle &handle)
   *_dout << dendl;
 
   osd->dequeue_op(pg, op, handle);
-  pg->unlock();
+  pg->unlock(op.get());
 }
 
 
