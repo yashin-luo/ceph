@@ -155,6 +155,7 @@ void PGPool::update(OSDMapRef map)
 PG::PG(OSDService *o, OSDMapRef curmap,
        const PGPool &_pool, spg_t p, const hobject_t& loid,
        const hobject_t& ioid) :
+  pgstr(print_spg_t(p)),
   osd(o),
   cct(o->cct),
   osdriver(osd->store, coll_t(), OSD::make_snapmapper_oid()),
@@ -166,7 +167,7 @@ PG::PG(OSDService *o, OSDMapRef curmap,
     p.shard),
   map_lock("PG::map_lock"),
   osdmap_ref(curmap), last_persisted_osdmap_ref(curmap), pool(_pool),
-  _lock("PG::_lock"),
+  _lock(string("PGLock"), pgstr),
   ref(0),
   #ifdef PG_DEBUG_REFS
   _ref_id_lock("PG::_ref_id_lock"), _ref_id(0),

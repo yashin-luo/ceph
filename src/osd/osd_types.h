@@ -460,6 +460,7 @@ CEPH_HASH_NAMESPACE_START
 CEPH_HASH_NAMESPACE_END
 
 ostream& operator<<(ostream& out, const spg_t &pg);
+string print_spg_t(spg_t pgid);
 
 // ----------------------
 

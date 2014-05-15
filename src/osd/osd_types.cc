@@ -394,6 +394,13 @@ ostream& operator<<(ostream& out, const spg_t &pg)
     out << "s" << (unsigned)pg.shard;
   return out;
 }
+ 
+string print_spg_t(spg_t pgid)
+{
+  stringstream ss;
+  ss << pgid;
+  return ss.str();
+}
 
 pg_t pg_t::get_ancestor(unsigned old_pg_num) const
 {

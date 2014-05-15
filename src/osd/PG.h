@@ -37,6 +37,7 @@
 #include "SnapMapper.h"
 
 #include "PGLog.h"
+#include "optracker/TrackedMutex.h"
 #include "OpRequest.h"
 #include "OSDMap.h"
 #include "os/ObjectStore.h"
@@ -185,6 +186,7 @@ struct PGPool {
 
 class PG {
 public:
+  const string pgstr;
   std::string gen_prefix() const;
 
   /*** PG ****/
@@ -235,7 +237,7 @@ protected:
    * put() should be called on destruction of some previously copied pointer.
    * put_unlock() when done with the current pointer (_most common_).
    */  
-  Mutex _lock;
+  TrackedMutex _lock;
   atomic_t ref;
 
 #ifdef PG_DEBUG_REFS
