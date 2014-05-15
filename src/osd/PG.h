@@ -180,6 +180,8 @@ struct PGPool {
   void update(OSDMapRef map);
 };
 
+#define SIMPLE_PGLOCKER(var, pg) PG::Locker var(pg, __func__)
+
 /** PG - Replica Placement Group
  *
  */
@@ -251,13 +253,22 @@ public:
   bool deleting;  // true while in removing or OSD is shutting down
 
 
-  void lock_suspend_timeout(ThreadPool::TPHandle &handle);
-  void lock(bool no_lockdep = false);
-  void unlock() {
+  void lock_suspend_timeout(ThreadPool::TPHandle &handle,
+			    bool no_lockdep = false,
+			    const TrackedOp *op = NULL);
+  void lock(bool no_lockdep, const TrackedOp *op);
+
+  void lock(bool no_lockdep) {
+    return lock(no_lockdep, NULL);
+  }
+  void lock() {
+    return lock(false, NULL);
+  }
+  void unlock(const TrackedOp *op = NULL) {
     //generic_dout(0) << this << " " << info.pgid << " unlock" << dendl;
     assert(!dirty_info);
     assert(!dirty_big_info);
-    _lock.Unlock();
+    _lock.Unlock(op);
   }
 
   void assert_locked() {
@@ -266,6 +277,45 @@ public:
   bool is_locked() const {
     return _lock.is_locked();
   }
+
+  class Locker {
+    TrackedOp _op;
+    TrackedOp *op;
+    PG *pg;
+    bool no_lockdep;
+  public:
+    Locker(PG *pg, bool no_lockdep=false)
+      : _op("unknown", pg->pgstr), op(&_op), pg(pg), no_lockdep(no_lockdep) {
+      pg->lock(no_lockdep, op);
+    }
+    Locker(PG *pg, TrackedOp *in_op, bool no_lockdep=false)
+      : _op("", pg->pgstr), op(in_op), pg(pg), no_lockdep(no_lockdep) {
+      pg->lock(no_lockdep, op);
+    }
+    Locker(PG *pg, const char *context, bool no_lockdep=false)
+      : _op(context, pg->pgstr), op(&_op), pg(pg), no_lockdep(no_lockdep) {
+      pg->lock(no_lockdep, op);
+    }
+    Locker(PG *pg, TrackedOp *in_op, ThreadPool::TPHandle &handle,
+	   bool no_lockdep=false)
+      : _op("", pg->pgstr), op(in_op), pg(pg), no_lockdep(no_lockdep) {
+      pg->lock_suspend_timeout(handle, no_lockdep, op);
+    }
+    Locker(PG *pg, const char *context, ThreadPool::TPHandle &handle,
+	   bool no_lockdep=false)
+      : _op(context, pg->pgstr), op(&_op), pg(pg), no_lockdep(no_lockdep) {
+      pg->lock_suspend_timeout(handle, no_lockdep, op);
+    }
+    Locker(PG *pg, ThreadPool::TPHandle &handle,
+	   bool no_lockdep=false)
+      : _op("unknown", pg->pgstr), op(&_op), pg(pg), no_lockdep(no_lockdep) {
+      pg->lock_suspend_timeout(handle, no_lockdep, op);
+    }
+
+    ~Locker() {
+      pg->unlock(op);
+    }
+  };
 
 #ifdef PG_DEBUG_REFS
   uint64_t get_with_id();
