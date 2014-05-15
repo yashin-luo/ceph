@@ -12,10 +12,18 @@
 #include "include/assert.h"
 #include "osd/osd_types.h"
 
-
+static string build_op_desc_string(Message *req) {
+  stringstream ss;
+  req->print(ss);
+  return ss.str();
+}
 
 OpRequest::OpRequest(Message *req, OpTracker *tracker) :
-  TrackedOp(tracker, req->get_recv_stamp()),
+  TrackedOp(
+    req ? req->get_type_name() : "",
+    build_op_desc_string(req),
+    tracker,
+    req->get_recv_stamp()),
   rmw_flags(0), request(req),
   hit_flag_points(0), latest_flag_point(0),
   send_map_update(false), sent_epoch(0) {
@@ -58,11 +66,6 @@ void OpRequest::_dump(utime_t now, Formatter *f) const
     }
     f->close_section();
   }
-}
-
-void OpRequest::_dump_op_descriptor(ostream& stream) const
-{
-  get_req()->print(stream);
 }
 
 void OpRequest::_unregistered() {

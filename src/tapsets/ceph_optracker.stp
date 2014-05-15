@@ -1,0 +1,19 @@
+probe ceph_optracker.op_event =
+			process("ceph-osd").provider("ceph_optracker").mark("op_event")
+{
+			class = user_string($arg1)
+			inst = user_string($arg2)
+			event = user_string($arg3)
+}
+
+probe ceph_optracker.res_event =
+			process("ceph-osd").provider("ceph_optracker").mark("res_event")
+{
+			res_type = user_string($arg1)
+			res_class = user_string($arg2)
+			res_inst = user_string($arg3)
+			op_class = user_string($arg4)
+			op_inst = user_string($arg5)
+			event = user_string($arg6)
+			status = user_string($arg7)
+}

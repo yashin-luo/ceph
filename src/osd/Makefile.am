@@ -25,7 +25,6 @@ libosd_la_SOURCES = \
 	osd/Watch.cc \
 	osd/ClassHandler.cc \
 	osd/OpRequest.cc \
-	common/TrackedOp.cc \
 	osd/SnapMapper.cc \
 	osd/osd_types.cc \
 	osd/ECUtil.cc \

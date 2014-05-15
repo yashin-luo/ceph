@@ -23,6 +23,10 @@
 #undef dout_prefix
 #define dout_prefix _prefix(_dout)
 
+#ifdef HAVE_SYSTEMTAP
+#include "optracker_probes.h"
+#endif
+
 static ostream& _prefix(std::ostream* _dout)
 {
   return *_dout << "-- op tracker -- ";
@@ -259,8 +263,18 @@ void TrackedOp::mark_event(const string &event)
     Mutex::Locker l(lock);
     events.push_back(make_pair(now, event));
   }
-  tracker->mark_event(this, event);
+
+  if (tracker) {
+    tracker->mark_event(this, event);
+  }
   _event_marked();
+
+#if HAVE_SYSTEMTAP
+  CEPH_OPTRACKER_OP_EVENT(
+    op_id.class_id,
+    op_id.inst_id,
+    event.c_str());
+#endif
 }
 
 void TrackedOp::dump(utime_t now, Formatter *f) const

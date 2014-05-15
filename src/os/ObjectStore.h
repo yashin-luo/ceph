@@ -18,7 +18,7 @@
 #include "include/buffer.h"
 #include "include/types.h"
 #include "osd/osd_types.h"
-#include "common/TrackedOp.h"
+#include "optracker/TrackedOp.h"
 #include "common/WorkQueue.h"
 #include "ObjectMap.h"
 

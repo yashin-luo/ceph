@@ -115,12 +115,21 @@ public:
   }
 };
 
+struct tracked_op_t {
+  const char *class_id;
+  const char *inst_id;
+  tracked_op_t(const char *ci, const char *ii)
+    : class_id(ci), inst_id(ii) {}
+};
+
 class TrackedOp {
 private:
   friend class OpHistory;
   friend class OpTracker;
   xlist<TrackedOp*>::item xitem;
 protected:
+  const string inst_id;
+  const tracked_op_t op_id;
   OpTracker *tracker; /// the tracker we are associated with
 
   utime_t initiated_at;
@@ -131,8 +140,28 @@ protected:
 
   uint32_t warn_interval_multiplier; // limits output of a given op warning
 
-  TrackedOp(OpTracker *_tracker, const utime_t& initiated) :
+  /// output any type-specific data you want to get when dump() is called
+  virtual void _dump(utime_t now, Formatter *f) const {}
+  /// if you want something else to happen when events are marked, implement
+  virtual void _event_marked() {}
+  virtual void _unregistered() {};
+
+  /// return a unique descriptor of the Op; eg the message it's attached to
+  void _dump_op_descriptor(ostream& stream) const {
+    stream << op_id.inst_id;
+  }
+
+  /// called when the last non-OpTracker reference is dropped
+
+public:
+  TrackedOp(
+    const char *class_id,
+    const string &_inst_id,
+    OpTracker *_tracker,
+    const utime_t& initiated) :
     xitem(this),
+    inst_id(_inst_id),
+    op_id(class_id, inst_id.c_str()),
     tracker(_tracker),
     initiated_at(initiated),
     lock("TrackedOp::lock"),
@@ -142,16 +171,22 @@ protected:
     tracker->register_inflight_op(&xitem);
   }
 
-  /// output any type-specific data you want to get when dump() is called
-  virtual void _dump(utime_t now, Formatter *f) const {}
-  /// if you want something else to happen when events are marked, implement
-  virtual void _event_marked() {}
-  /// return a unique descriptor of the Op; eg the message it's attached to
-  virtual void _dump_op_descriptor(ostream& stream) const = 0;
-  /// called when the last non-OpTracker reference is dropped
-  virtual void _unregistered() {};
+  TrackedOp(
+    const char *class_id,
+    const string &_inst_id)
+    : xitem(this),
+      inst_id(_inst_id),
+      op_id(class_id, inst_id.c_str()),
+      tracker(0),
+      lock("TrackedOp::lock"),
+      seq(0),
+      warn_interval_multiplier(1) {}
 
-public:
+
+  virtual const tracked_op_t *get_op_id() const {
+    return &op_id;
+  }
+
   virtual ~TrackedOp() {}
 
   const utime_t& get_initiated() const {

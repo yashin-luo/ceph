@@ -22,7 +22,7 @@
 #include "include/xlist.h"
 #include "msg/Message.h"
 #include "include/memory.h"
-#include "common/TrackedOp.h"
+#include "optracker/TrackedOp.h"
 
 /**
  * osd request identifier
@@ -90,7 +90,6 @@ private:
   OpRequest(Message *req, OpTracker *tracker);
 
 protected:
-  void _dump_op_descriptor(ostream& stream) const;
   void _unregistered();
 
 public:

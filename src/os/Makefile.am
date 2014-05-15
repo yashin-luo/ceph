@@ -14,8 +14,7 @@ libos_la_SOURCES = \
 	os/MemStore.cc \
 	os/KeyValueStore.cc \
 	os/ObjectStore.cc \
-	os/WBThrottle.cc \
-	common/TrackedOp.cc
+	os/WBThrottle.cc
 
 if LINUX
 libos_la_SOURCES += os/BtrfsFileStoreBackend.cc
@@ -28,6 +27,8 @@ endif
 if WITH_LIBZFS
 libos_la_SOURCES += os/ZFSFileStoreBackend.cc
 endif
+
+libos_la_LIBADD = $(LIBOPTRACKER)
 
 noinst_LTLIBRARIES += libos.la
 
