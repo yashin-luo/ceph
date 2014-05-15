@@ -1756,7 +1756,7 @@ void PG::replay_queued_ops()
 
 void PG::_activate_committed(epoch_t e)
 {
-  lock();
+  SIMPLE_PGLOCKER(l, this);
   if (pg_has_reset_since(e)) {
     dout(10) << "_activate_committed " << e << ", that was an old interval" << dendl;
   } else if (is_primary()) {
@@ -1792,8 +1792,6 @@ void PG::_activate_committed(epoch_t e)
     int tr = osd->store->queue_transaction_and_cleanup(osr.get(), t);
     assert(tr == 0);
   }
-
-  unlock();
 }
 
 /*
@@ -1895,9 +1893,8 @@ void PG::finish_recovery(list<Context*>& tfin)
 
 void PG::_finish_recovery(Context *c)
 {
-  lock();
+  SIMPLE_PGLOCKER(l, this);
   if (deleting) {
-    unlock();
     return;
   }
   if (c == finish_sync_event) {
@@ -1916,7 +1913,6 @@ void PG::_finish_recovery(Context *c)
   } else {
     dout(10) << "_finish_recovery -- stale" << dendl;
   }
-  unlock();
 }
 
 void PG::start_recovery_op(const hobject_t& soid)
@@ -4327,10 +4323,9 @@ struct FlushState {
   epoch_t epoch;
   FlushState(PG *pg, epoch_t epoch) : pg(pg), epoch(epoch) {}
   ~FlushState() {
-    pg->lock();
+    SIMPLE_PGLOCKER(l, pg.get());
     if (!pg->pg_has_reset_since(epoch))
       pg->queue_flushed(epoch);
-    pg->unlock();
   }
 };
 typedef ceph::shared_ptr<FlushState> FlushStateRef;

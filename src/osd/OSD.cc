@@ -1086,9 +1086,10 @@ bool OSD::asok_command(string command, cmdmap_t& cmdmap, string format,
 
         list<obj_watch_item_t> pg_watchers;
         PG *pg = it->second;
-        pg->lock();
-        pg->get_watchers(pg_watchers);
-        pg->unlock();
+	{
+	  SIMPLE_PGLOCKER(l, pg);
+	  pg->get_watchers(pg_watchers);
+	}
         watchers.splice(watchers.end(), pg_watchers);
       }
     }
@@ -1626,9 +1627,10 @@ int OSD::shutdown()
         p != pg_map.end();
         ++p) {
       dout(20) << " kicking pg " << p->first << dendl;
-      p->second->lock();
-      p->second->on_shutdown();
-      p->second->unlock();
+      {
+	SIMPLE_PGLOCKER(l, p->second);
+	p->second->on_shutdown();
+      }
       p->second->osr->flush();
     }
   }
@@ -1730,13 +1732,14 @@ int OSD::shutdown()
         p != pg_map.end();
         ++p) {
       dout(20) << " kicking pg " << p->first << dendl;
-      p->second->lock();
-      if (p->second->ref.read() != 1) {
-        derr << "pgid " << p->first << " has ref count of "
-            << p->second->ref.read() << dendl;
-        assert(0);
+      {
+	SIMPLE_PGLOCKER(l, p->second);
+	if (p->second->ref.read() != 1) {
+	  derr << "pgid " << p->first << " has ref count of "
+	       << p->second->ref.read() << dendl;
+	  assert(0);
+	}
       }
-      p->second->unlock();
       p->second->put("PGMap");
     }
     pg_map.clear();
@@ -1948,9 +1951,11 @@ OSD::res_result OSD::_try_resurrect_pg(
   if (!df)
     return RES_NONE; // good to go
 
-  df->old_pg_state->lock();
-  OSDMapRef create_map = df->old_pg_state->get_osdmap();
-  df->old_pg_state->unlock();
+  OSDMapRef create_map;
+  {
+    SIMPLE_PGLOCKER(l, df->old_pg_state.get());
+    create_map = df->old_pg_state->get_osdmap();
+  }
 
   set<spg_t> children;
   if (cur == pgid) {
@@ -2343,11 +2348,12 @@ void OSD::build_past_intervals_parallel()
   int num = 0;
   for (map<PG*,pistate>::iterator i = pis.begin(); i != pis.end(); ++i) {
     PG *pg = i->first;
-    pg->lock();
-    pg->dirty_big_info = true;
-    pg->dirty_info = true;
-    pg->write_if_dirty(t);
-    pg->unlock();
+    {
+      SIMPLE_PGLOCKER(l, pg);
+      pg->dirty_big_info = true;
+      pg->dirty_info = true;
+      pg->write_if_dirty(t);
+    }
 
     // don't let the transaction get too big
     if (++num >= cct->_conf->osd_target_transaction_size) {
@@ -2457,16 +2463,25 @@ void OSD::handle_pg_peering_evt(
       return;
     }
     case RES_SELF: {
-      old_pg_state->lock();
-      OSDMapRef old_osd_map = old_pg_state->get_osdmap();
-      int old_role = old_pg_state->role;
-      vector<int> old_up = old_pg_state->up;
-      int old_up_primary = old_pg_state->up_primary.osd;
-      vector<int> old_acting = old_pg_state->acting;
-      int old_primary = old_pg_state->primary.osd;
-      pg_history_t old_history = old_pg_state->info.history;
-      pg_interval_map_t old_past_intervals = old_pg_state->past_intervals;
-      old_pg_state->unlock();
+      OSDMapRef old_osd_map;
+      int old_role;
+      vector<int> old_up;
+      int old_up_primary;
+      vector<int> old_acting;
+      int old_primary;
+      pg_history_t old_history;
+      pg_interval_map_t old_past_intervals;
+      {
+	SIMPLE_PGLOCKER(l, old_pg_state.get());
+	old_osd_map = old_pg_state->get_osdmap();
+	old_role = old_pg_state->role;
+	old_up = old_pg_state->up;
+	old_up_primary = old_pg_state->up_primary.osd;
+	old_acting = old_pg_state->acting;
+	old_primary = old_pg_state->primary.osd;
+	old_history = old_pg_state->info.history;
+	old_past_intervals = old_pg_state->past_intervals;
+      }
       PG *pg = _create_lock_pg(
 	old_osd_map,
 	resurrected,
@@ -2493,16 +2508,25 @@ void OSD::handle_pg_peering_evt(
     }
     case RES_PARENT: {
       assert(old_pg_state);
-      old_pg_state->lock();
-      OSDMapRef old_osd_map = old_pg_state->get_osdmap();
-      int old_role = old_pg_state->role;
-      vector<int> old_up = old_pg_state->up;
-      int old_up_primary = old_pg_state->up_primary.osd;
-      vector<int> old_acting = old_pg_state->acting;
-      int old_primary = old_pg_state->primary.osd;
-      pg_history_t old_history = old_pg_state->info.history;
-      pg_interval_map_t old_past_intervals = old_pg_state->past_intervals;
-      old_pg_state->unlock();
+      OSDMapRef old_osd_map;
+      int old_role;
+      vector<int> old_up;
+      int old_up_primary;
+      vector<int> old_acting;
+      int old_primary;
+      pg_history_t old_history;
+      pg_interval_map_t old_past_intervals;
+      {
+	SIMPLE_PGLOCKER(l, old_pg_state.get());
+	old_osd_map = old_pg_state->get_osdmap();
+	old_role = old_pg_state->role;
+	old_up = old_pg_state->up;
+	old_up_primary = old_pg_state->up_primary.osd;
+	old_acting = old_pg_state->acting;
+	old_primary = old_pg_state->primary.osd;
+	old_history = old_pg_state->info.history;
+	old_past_intervals = old_pg_state->past_intervals;
+      }
       PG *parent = _create_lock_pg(
 	old_osd_map,
 	resurrected,
@@ -4580,8 +4604,8 @@ void OSD::do_command(Connection *con, ceph_tid_t tid, vector<string>& cmd, buffe
       ceph::unordered_map<spg_t, PG*>::iterator q = pg_map.find(*p);
       assert(q != pg_map.end());
       PG *pg = q->second;
-      pg->lock();
 
+      SIMPLE_PGLOCKER(l, pg);
       fout << *pg << std::endl;
       std::map<hobject_t, pg_missing_t::item>::const_iterator mend =
 	pg->pg_log.get_missing().missing.end();
@@ -4598,7 +4622,6 @@ void OSD::do_command(Connection *con, ceph_tid_t tid, vector<string>& cmd, buffe
 	  continue;
 	fout << "missing_loc: " << mls << std::endl;
       }
-      pg->unlock();
       fout << std::endl;
     }
 
@@ -5311,7 +5334,7 @@ void OSD::handle_scrub(MOSDScrub *m)
 	 p != pg_map.end();
 	 ++p) {
       PG *pg = p->second;
-      pg->lock();
+      SIMPLE_PGLOCKER(l, pg);
       if (pg->is_primary()) {
 	pg->unreg_next_scrub();
 	pg->scrubber.must_scrub = true;
@@ -5320,7 +5343,6 @@ void OSD::handle_scrub(MOSDScrub *m)
 	pg->reg_next_scrub();
 	dout(10) << "marking " << *pg << " for scrub" << dendl;
       }
-      pg->unlock();
     }
   } else {
     for (vector<pg_t>::iterator p = m->scrub_pgs.begin();
@@ -5330,7 +5352,7 @@ void OSD::handle_scrub(MOSDScrub *m)
       if (osdmap->get_primary_shard(*p, &pcand) &&
 	  pg_map.count(pcand)) {
 	PG *pg = pg_map[pcand];
-	pg->lock();
+	SIMPLE_PGLOCKER(l, pg);
 	if (pg->is_primary()) {
 	  pg->unreg_next_scrub();
 	  pg->scrubber.must_scrub = true;
@@ -5339,7 +5361,6 @@ void OSD::handle_scrub(MOSDScrub *m)
 	  pg->reg_next_scrub();
 	  dout(10) << "marking " << *pg << " for scrub" << dendl;
 	}
-	pg->unlock();
       }
     }
   }
@@ -6139,7 +6160,7 @@ void OSD::consume_map()
         it != pg_map.end();
         ++it) {
       PG *pg = it->second;
-      pg->lock();
+      SIMPLE_PGLOCKER(l, pg);
       if (pg->is_primary())
         num_pg_primary++;
       else if (pg->is_replica())
@@ -6153,8 +6174,6 @@ void OSD::consume_map()
       } else {
         service.init_splits_between(it->first, service.get_osdmap(), osdmap);
       }
-
-      pg->unlock();
     }
   }
 
@@ -6162,9 +6181,8 @@ void OSD::consume_map()
        i != to_remove.end();
        to_remove.erase(i++)) {
     RWLock::WLocker locker(pg_map_lock);
-    (*i)->lock();
+    SIMPLE_PGLOCKER(l, (*i).get());
     _remove_pg(&**i);
-    (*i)->unlock();
   }
   to_remove.clear();
 
@@ -6230,9 +6248,8 @@ void OSD::consume_map()
         it != pg_map.end();
         ++it) {
       PG *pg = it->second;
-      pg->lock();
+      SIMPLE_PGLOCKER(l, pg);
       pg->queue_null(osdmap->get_epoch(), osdmap->get_epoch());
-      pg->unlock();
     }
 
     logger->set(l_osd_pg, pg_map.size());
@@ -6561,7 +6578,8 @@ void OSD::split_pgs(
     dout(10) << "Splitting " << *parent << " into " << *i << dendl;
     assert(service.splitting(*i));
     PG* child = _make_pg(nextmap, *i);
-    child->lock(true);
+
+    PG::Locker l(child, __func__, true);
     out_pgs->insert(child);
 
     unsigned split_bits = i->get_split_bits(pg_num);
@@ -6581,7 +6599,6 @@ void OSD::split_pgs(
     child->info.stats.stats.sum = *stat_iter;
 
     child->write_if_dirty(*(rctx->transaction));
-    child->unlock();
   }
   assert(stat_iter != updated_stats.end());
   parent->info.stats.stats.sum = *stat_iter;
@@ -8098,16 +8115,17 @@ struct C_CompleteSplits : public Context {
 	 i != pgs.end();
 	 ++i) {
       osd->pg_map_lock.get_write();
-      (*i)->lock();
-      osd->add_newly_split_pg(&**i, &rctx);
-      if (!((*i)->deleting)) {
-        to_complete.insert((*i)->info.pgid);
-        osd->service.complete_split(to_complete);
-      }
-      osd->pg_map_lock.put_write();
-      osd->dispatch_context_transaction(rctx, &**i);
+      {
+	SIMPLE_PGLOCKER(l2, (*i).get());
+	osd->add_newly_split_pg(&**i, &rctx);
+	if (!((*i)->deleting)) {
+	  to_complete.insert((*i)->info.pgid);
+	  osd->service.complete_split(to_complete);
+	}
+	osd->pg_map_lock.put_write();
+	osd->dispatch_context_transaction(rctx, &**i);
 	to_complete.insert((*i)->info.pgid);
-      (*i)->unlock();
+      }
       to_complete.clear();
     }
 

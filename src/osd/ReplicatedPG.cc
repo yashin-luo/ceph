@@ -2512,26 +2512,27 @@ ReplicatedPG::RepGather *ReplicatedPG::trim_object(const hobject_t &coid)
 
 void ReplicatedPG::snap_trimmer()
 {
+  bool slept = false;
+  utime_t t;
   if (g_conf->osd_snap_trim_sleep > 0) {
-    utime_t t;
     t.set_from_double(g_conf->osd_snap_trim_sleep);
     t.sleep();
-    lock();
+    slept = true;
+  }
+
+  SIMPLE_PGLOCKER(l, this);
+  if (slept)
     dout(20) << __func__ << " slept for " << t << dendl;
-  } else {
-    lock();
-  }
-  if (deleting) {
-    unlock();
+
+  if (deleting)
     return;
-  }
+
   dout(10) << "snap_trimmer entry" << dendl;
   if (is_primary()) {
     entity_inst_t nobody;
     if (scrubber.active) {
       dout(10) << " scrubbing, will requeue snap_trimmer after" << dendl;
       scrubber.queue_snap_trim = true;
-      unlock();
       return;
     }
 
@@ -2552,7 +2553,6 @@ void ReplicatedPG::snap_trimmer()
     dout(10) << "snap_trimmer requeue" << dendl;
     queue_snap_trim();
   }
-  unlock();
   return;
 }
 
@@ -5338,11 +5338,10 @@ struct C_Copyfrom : public Context {
   void finish(int r) {
     if (r == -ECANCELED)
       return;
-    pg->lock();
+    SIMPLE_PGLOCKER(l, pg.get());
     if (last_peering_reset == pg->get_last_peering_reset()) {
       pg->process_copy_chunk(oid, tid, r);
     }
-    pg->unlock();
   }
 };
 
@@ -6079,11 +6078,10 @@ struct C_Flush : public Context {
   void finish(int r) {
     if (r == -ECANCELED)
       return;
-    pg->lock();
+    SIMPLE_PGLOCKER(l, pg.get());
     if (last_peering_reset == pg->get_last_peering_reset()) {
       pg->finish_flush(oid, tid, r);
     }
-    pg->unlock();
   }
 };
 
@@ -8770,7 +8768,7 @@ void ReplicatedBackend::handle_pull(pg_shard_t peer, PullOp &op, PushOp *reply)
 void ReplicatedPG::_committed_pushed_object(
   epoch_t epoch, eversion_t last_complete)
 {
-  lock();
+  SIMPLE_PGLOCKER(l, this);
   if (!pg_has_reset_since(epoch)) {
     dout(10) << "_committed_pushed_object last_complete " << last_complete << " now ondisk" << dendl;
     last_complete_ondisk = last_complete;
@@ -8796,13 +8794,11 @@ void ReplicatedPG::_committed_pushed_object(
   } else {
     dout(10) << "_committed_pushed_object pg has changed, not touching last_complete_ondisk" << dendl;
   }
-
-  unlock();
 }
 
 void ReplicatedPG::_applied_recovered_object(ObjectContextRef obc)
 {
-  lock();
+  SIMPLE_PGLOCKER(l, this);
   dout(10) << "_applied_recovered_object " << *obc << dendl;
 
   assert(active_pushes >= 1);
@@ -8813,13 +8809,11 @@ void ReplicatedPG::_applied_recovered_object(ObjectContextRef obc)
       && scrubber.is_chunky_scrub_active()) {
     osd->scrub_wq.queue(this);
   }
-
-  unlock();
 }
 
 void ReplicatedPG::_applied_recovered_object_replica()
 {
-  lock();
+  SIMPLE_PGLOCKER(l, this);
   dout(10) << "_applied_recovered_object_replica" << dendl;
 
   assert(active_pushes >= 1);
@@ -8831,8 +8825,6 @@ void ReplicatedPG::_applied_recovered_object_replica()
     osd->rep_scrub_wq.queue(scrubber.active_rep_scrub);
     scrubber.active_rep_scrub = 0;
   }
-
-  unlock();
 }
 
 void ReplicatedPG::recover_got(hobject_t oid, eversion_t v)
@@ -9180,7 +9172,7 @@ void ReplicatedPG::mark_all_unfound_lost(int what)
 
 void ReplicatedPG::_finish_mark_all_unfound_lost(list<ObjectContextRef>& obcs)
 {
-  lock();
+  SIMPLE_PGLOCKER(l, this);
   dout(10) << "_finish_mark_all_unfound_lost " << dendl;
 
   if (!deleting)
@@ -9188,7 +9180,6 @@ void ReplicatedPG::_finish_mark_all_unfound_lost(list<ObjectContextRef>& obcs)
   waiting_for_all_missing.clear();
 
   obcs.clear();
-  unlock();
 }
 
 void ReplicatedPG::_split_into(pg_t child_pgid, PG *child, unsigned split_bits)
@@ -10991,10 +10982,9 @@ void ReplicatedPG::agent_clear()
 // Return false if no objects operated on since start of object hash space
 bool ReplicatedPG::agent_work(int start_max)
 {
-  lock();
+  SIMPLE_PGLOCKER(l, this);
   if (!agent_state) {
     dout(10) << __func__ << " no agent state, stopping" << dendl;
-    unlock();
     return true;
   }
 
@@ -11002,7 +10992,6 @@ bool ReplicatedPG::agent_work(int start_max)
 
   if (agent_state->is_idle()) {
     dout(10) << __func__ << " idle, stopping" << dendl;
-    unlock();
     return true;
   }
 
@@ -11138,11 +11127,9 @@ bool ReplicatedPG::agent_work(int start_max)
   if (need_delay) {
     assert(agent_state->delaying == false);
     agent_delay();
-    unlock();
     return false;
   }
   agent_choose_mode();
-  unlock();
   return true;
 }
 
@@ -11358,12 +11345,11 @@ void ReplicatedPG::agent_delay()
 void ReplicatedPG::agent_choose_mode_restart()
 {
   dout(20) << __func__ << dendl;
-  lock();
+  SIMPLE_PGLOCKER(l, this);
   if (agent_state && agent_state->delaying) {
     agent_state->delaying = false;
     agent_choose_mode(true);
   }
-  unlock();
 }
 
 void ReplicatedPG::agent_choose_mode(bool restart)
