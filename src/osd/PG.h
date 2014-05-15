@@ -1106,9 +1106,7 @@ public:
     ScrubMap &map,
     hobject_t start, hobject_t end, bool deep,
     ThreadPool::TPHandle &handle);
-  void build_scrub_map(ScrubMap &map, ThreadPool::TPHandle &handle);
-  void build_inc_scrub_map(
-    ScrubMap &map, eversion_t v, ThreadPool::TPHandle &handle);
+
   /**
    * returns true if [begin, end) is good to scrub at this time
    * a false return value obliges the implementer to requeue scrub when the
