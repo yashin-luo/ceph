@@ -193,6 +193,7 @@ PG::PG(OSDService *o, OSDMapRef curmap,
   pg_stats_publish_valid(false),
   osr(osd->osr_registry.lookup_or_create(p, (stringify(p)))),
   finish_sync_event(NULL),
+  scrubber(p),
   scrub_after_recovery(false),
   active_pushes(0),
   recovery_state(this)
@@ -3434,11 +3435,9 @@ void PG::replica_scrub(
  */
 void PG::scrub(ThreadPool::TPHandle &handle)
 {
-  lock();
-  if (deleting) {
-    unlock();
+  Locker l(this, handle, &scrubber);
+  if (deleting)
     return;
-  }
 
   if (!is_primary() || !is_active() || !is_clean() || !is_scrubbing()) {
     dout(10) << "scrub -- not primary or active or not clean" << dendl;
@@ -3446,7 +3445,6 @@ void PG::scrub(ThreadPool::TPHandle &handle)
     state_clear(PG_STATE_REPAIR);
     state_clear(PG_STATE_DEEP_SCRUB);
     publish_stats_to_osd();
-    unlock();
     return;
   }
 
@@ -3477,8 +3475,6 @@ void PG::scrub(ThreadPool::TPHandle &handle)
   }
 
   chunky_scrub(handle);
-
-  unlock();
 }
 
 /*
@@ -3945,9 +3941,8 @@ void PG::scrub_process_inconsistent()
 
 void PG::scrub_finalize()
 {
-  lock();
+  TrackedMutex::Locker l(&scrubber, _lock);
   if (deleting) {
-    unlock();
     return;
   }
 
@@ -3957,13 +3952,11 @@ void PG::scrub_finalize()
     dout(10) << "scrub  pg changed, aborting" << dendl;
     scrub_clear_state();
     scrub_unreserve_replicas();
-    unlock();
     return;
   }
 
   if (!scrub_gather_replica_maps()) {
     dout(10) << "maps not yet up to date, sent out new requests" << dendl;
-    unlock();
     return;
   }
 
@@ -3972,7 +3965,6 @@ void PG::scrub_finalize()
   scrub_finish();
 
   dout(10) << "scrub done" << dendl;
-  unlock();
 }
 
 // the part that actually finalizes a scrub

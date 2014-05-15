@@ -991,8 +991,9 @@ public:
 
 
   // -- scrub --
-  struct Scrubber {
-    Scrubber() :
+  struct Scrubber : TrackedOp {
+    Scrubber(spg_t pgid) :
+      TrackedOp("PG::Scrubber", print_spg_t(pgid)),
       reserved(false), reserve_failed(false),
       epoch_start(0),
       block_writes(false), active(false), queue_snap_trim(false),
