@@ -3,7 +3,14 @@
 
   <description>CephFS Java Bindings</description>
 
+  <property name="pkg" value="cephfs-0.0.1"/>
+  <property name="jar.doc" value="${pkg}-javadoc.jar"/>
+  <property name="jar.src" value="${pkg}-sources.jar"/>
+  <property name="jar.built" value="${pkg}.jar"/>
+  <property name="build.dir" value="build"/>
+  <property name="classes.dir" value="${build.dir}/classes"/>
   <property name="src.dir" location="java" />
+
   <property name="doc.dir" location="doc" />
   <property name="test.dir" location="test" />
 
@@ -17,16 +24,20 @@
     <delete file="./libcephfs-test.jar" />
   </target>
 
-  <target name="makedir">
-    <mkdir dir="${doc.dir}" />
-  </target>
-
-  <target name="docs" depends="makedir">
+  <target name="docs">
+    <mkdir dir="${doc.dir}"/>
     <javadoc packagenames="src" sourcepath="${src.dir}" destdir="${doc.dir}">
       <fileset dir="${src.dir}">
         <include name="**/*.java" />
       </fileset>
     </javadoc>
+    <jar destfile="${jar.doc}" basedir="${doc.dir}"/>
+  </target>
+
+  <target name="src">
+      <jar destfile="${jar.src}">
+          <fileset dir="${src.dir}" includes="**/*.java"/>
+      </jar>
   </target>
 
   <target name="compile-tests-jar">
@@ -70,6 +81,26 @@
       <formatter type="plain"/>
       <test name="com.ceph.fs.CephAllTests" haltonerror="true" />
     </junit>
+  </target>
+
+  <target name="compile">
+      <javac srcdir="${src.dir}" destdir="${classes.dir}" includeantruntime="false" source="1.5" target="1.5">
+      </javac>
+  </target>
+
+  <target name="jar" depends="compile">
+      <jar jarfile="${jar.built}">
+          <manifest>
+              <attribute name="Bundle-NativeCode"
+                  value="
+com/ceph/native/linux-x86-64/libcephfs-jni.so;
+processor=x86-64;osname=linux
+"/>
+          </manifest>
+          <fileset dir="${classes.dir}">
+              <include name="**/*" />
+          </fileset>
+      </jar>
   </target>
 
 </project>
