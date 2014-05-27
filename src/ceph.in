@@ -31,8 +31,8 @@ MYDIR = os.path.dirname(MYPATH)
 DEVMODEMSG = '*** DEVELOPER MODE: setting PATH, PYTHONPATH and LD_LIBRARY_PATH ***'
 
 if MYDIR.endswith('src') and \
-   os.path.exists(os.path.join(MYDIR, '.libs')) and \
-   os.path.exists(os.path.join(MYDIR, 'pybind')):
+        os.path.exists(os.path.join(MYDIR, '.libs')) and \
+        os.path.exists(os.path.join(MYDIR, 'pybind')):
     MYLIBPATH = os.path.join(MYDIR, '.libs')
     if 'LD_LIBRARY_PATH' in os.environ:
         if MYLIBPATH not in os.environ['LD_LIBRARY_PATH']:
@@ -44,7 +44,7 @@ if MYDIR.endswith('src') and \
         print >> sys.stderr, DEVMODEMSG
         os.execvp('python', ['python'] + sys.argv)
     sys.path.insert(0, os.path.join(MYDIR, 'pybind'))
-    if os.environ.has_key('PATH') and MYDIR not in os.environ['PATH']:
+    if 'PATH' in os.environ and MYDIR not in os.environ['PATH']:
         os.environ['PATH'] += ':' + MYDIR
 
 import argparse
@@ -67,7 +67,8 @@ from ceph_argparse import \
 verbose = False
 cluster_handle = None
 
-############################################################################
+# ###########################################################################
+
 
 def osdids():
     ret, outbuf, outs = json_command(cluster_handle, prefix='osd ls')
@@ -78,9 +79,10 @@ def osdids():
         raise RuntimeError('Can\'t contact mon for osd list')
     return [i for i in outbuf.split('\n') if i != '']
 
+
 def monids():
     ret, outbuf, outs = json_command(cluster_handle, prefix='mon dump',
-                                     argdict={'format':'json'})
+                                     argdict={'format': 'json'})
     if ret == -errno.EINVAL:
         # try old mon
         ret, outbuf, outs = send_command(cluster_handle,
@@ -90,9 +92,10 @@ def monids():
     d = json.loads(outbuf)
     return [m['name'] for m in d['mons']]
 
+
 def mdsids():
     ret, outbuf, outs = json_command(cluster_handle, prefix='mds dump',
-                                     argdict={'format':'json'})
+                                     argdict={'format': 'json'})
     if ret == -errno.EINVAL:
         # try old mon
         ret, outbuf, outs = send_command(cluster_handle,
@@ -105,6 +108,7 @@ def mdsids():
     for mdsdict in infodict.values():
         l.append(mdsdict['name'])
     return l
+
 
 def parse_cmdargs(args=None, target=''):
     # alias: let the line-wrapping be sane
@@ -159,7 +163,7 @@ def parse_cmdargs(args=None, target=''):
                         help="make less verbose")
 
     parser.add_argument('-f', '--format', choices=['json', 'json-pretty',
-                        'xml', 'xml-pretty', 'plain'], dest='output_format')
+                                                   'xml', 'xml-pretty', 'plain'], dest='output_format')
 
     parser.add_argument('--connect-timeout', dest='cluster_timeout',
                         type=int,
@@ -174,6 +178,7 @@ def parse_cmdargs(args=None, target=''):
 def hdr(s):
     print '\n', s, '\n', '=' * len(s)
 
+
 def do_basic_help(parser, args):
     """
     Print basic parser help
@@ -182,19 +187,19 @@ def do_basic_help(parser, args):
     hdr('General usage:')
     parser.print_help()
 
+
 def do_extended_help(parser, args):
     def help_for_sigs(sigs, partial=None):
         sys.stdout.write(format_help(parse_json_funcsigs(sigs, 'cli'),
-                         partial=partial))
+                                     partial=partial))
 
     def help_for_target(target, partial=None):
         ret, outbuf, outs = json_command(cluster_handle, target=target,
-                                         prefix='get_command_descriptions', 
+                                         prefix='get_command_descriptions',
                                          timeout=10)
         if ret:
             print >> sys.stderr, \
-                "couldn't get command descriptions for {0}: {1}".\
-                format(target, outs)
+                "couldn't get command descriptions for {0}: {1}".format(target, outs)
         else:
             help_for_sigs(outbuf, partial)
 
@@ -203,7 +208,9 @@ def do_extended_help(parser, args):
         help_for_target(target=('mon', ''), partial=partial)
     return 0
 
+
 DONTSPLIT = string.letters + '{[<>]}'
+
 
 def wrap(s, width, indent):
     """
@@ -233,7 +240,7 @@ def wrap(s, width, indent):
 
         else:
             splitpos = width
-            while (splitpos > 0) and (s[splitpos-1] in DONTSPLIT):
+            while (splitpos > 0) and (s[splitpos - 1] in DONTSPLIT):
                 splitpos -= 1
 
             if splitpos == 0:
@@ -245,7 +252,7 @@ def wrap(s, width, indent):
             else:
                 # first time, set leader and width for next
                 leader = ' ' * indent
-                width -= 1      # for subsequent space additions
+                width -= 1  # for subsequent space additions
 
             # remove any leading spaces in this chunk of s
             result += s[:splitpos].lstrip()
@@ -254,6 +261,7 @@ def wrap(s, width, indent):
             yield result
 
     raise StopIteration
+
 
 def format_help(cmddict, partial=None):
     """
@@ -283,6 +291,7 @@ def format_help(cmddict, partial=None):
             fullusage += '{0:40s} {1}\n'.format(s, h)
 
     return fullusage
+
 
 def admin_socket(asok_path, cmd, format=''):
     """
@@ -316,7 +325,7 @@ def admin_socket(asok_path, cmd, format=''):
 
     try:
         cmd_json = do_sockio(asok_path,
-            json.dumps({"prefix":"get_command_descriptions"}))
+                             json.dumps({"prefix": "get_command_descriptions"}))
     except Exception as e:
         raise RuntimeError('exception getting command descriptions: ' + str(e))
 
@@ -343,17 +352,18 @@ def ceph_conf(field, name):
     p = subprocess.Popen(
         args=[
             'ceph-conf',
-	    '--show-config-value',
+            '--show-config-value',
             field,
             '-n',
             name,
-            ],
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE)
     outdata, errdata = p.communicate()
     if (len(errdata)):
         raise RuntimeError('unable to get conf option %s for %s: %s' % (field, name, errdata))
     return outdata.rstrip()
+
 
 def new_style_command(parsed_args, cmdargs, target, sigdict, inbuf, verbose):
     """
@@ -385,6 +395,7 @@ def new_style_command(parsed_args, cmdargs, target, sigdict, inbuf, verbose):
             # do the command-interpreter looping
             # for raw_input to do readline cmd editing
             import readline
+
             while True:
                 interactive_input = raw_input('ceph> ')
                 if interactive_input in ['q', 'quit', 'Q']:
@@ -416,10 +427,11 @@ def new_style_command(parsed_args, cmdargs, target, sigdict, inbuf, verbose):
     return json_command(cluster_handle, target=target, argdict=valid_dict,
                         inbuf=inbuf)
 
+
 def complete(sigdict, args, target):
     """
     Command completion.  Match as much of [args] as possible,
-    and print every possible match separated by newlines. 
+    and print every possible match separated by newlines.
     Return exitcode.
     """
     # XXX this looks a lot like the front of validate_command().  Refactor?
@@ -442,15 +454,15 @@ def complete(sigdict, args, target):
             if complete_verbose:
                 print >> sys.stderr, \
                     "better match: {0} > {1}: {2}:{3} ".format(matched,
-                                  best_match_cnt, cmdtag, concise_sig(sig))
+                                                               best_match_cnt, cmdtag, concise_sig(sig))
             best_match_cnt = matched
-            bestcmds = [{cmdtag:cmd}]
+            bestcmds = [{cmdtag: cmd}]
         elif matched == best_match_cnt:
             if complete_verbose:
                 print >> sys.stderr, \
                     "equal match: {0} > {1}: {2}:{3} ".format(matched,
-                                  best_match_cnt, cmdtag, concise_sig(sig))
-            bestcmds.append({cmdtag:cmd})
+                                                              best_match_cnt, cmdtag, concise_sig(sig))
+            bestcmds.append({cmdtag: cmd})
 
     # look through all matching sigs
     comps = []
@@ -475,6 +487,7 @@ def complete(sigdict, args, target):
 
     return 0
 
+
 ###
 # ping a monitor
 ###
@@ -487,6 +500,7 @@ def ping_monitor(cluster_handle, name):
     s = cluster_handle.ping_monitor(mon_id)
     print s
     return 0
+
 
 ###
 # main
@@ -507,8 +521,8 @@ def main():
     verbose = parsed_args.verbose
 
     if parsed_args.admin_socket_nope:
-        print >> sys.stderr, '--admin-socket is used by daemons; '\
-        'you probably mean --admin-daemon/daemon'
+        print >> sys.stderr, '--admin-socket is used by daemons; ' \
+                             'you probably mean --admin-daemon/daemon'
         return 1
 
     # pass on --id, --name, --conf
@@ -572,9 +586,9 @@ def main():
     # and then set the keys from the dict.  So we must do these
     # "pre-file defaults" first (see common_preinit in librados)
     conf_defaults = {
-        'log_to_stderr':'true',
-        'err_to_stderr':'true',
-        'log_flush_on_exit':'true',
+        'log_to_stderr': 'true',
+        'err_to_stderr': 'true',
+        'log_flush_on_exit': 'true',
     }
 
     clustername = 'ceph'
@@ -587,7 +601,7 @@ def main():
                                      conffile=conffile)
         retargs = cluster_handle.conf_parse_argv(childargs)
     except rados.Error as e:
-        print >> sys.stderr, 'Error initializing cluster client: {0}'.\
+        print >> sys.stderr, 'Error initializing cluster client: {0}'. \
             format(e.__class__.__name__)
         return 1
 
@@ -602,9 +616,7 @@ def main():
 
     # special deprecation warning for 'ceph <type> tell'
     # someday 'mds' will be here too
-    if len(childargs) >= 2 and \
-        childargs[0] in ['mon', 'osd'] and \
-        childargs[1] == 'tell':
+    if len(childargs) >= 2 and childargs[0] in ['mon', 'osd'] and childargs[1] == 'tell':
         print >> sys.stderr, '"{0} tell" is deprecated; try "tell {0}.<id>" instead (id can be "*") '.format(childargs[0])
         return 1
 
@@ -629,7 +641,7 @@ def main():
         print >> sys.stderr, 'Cluster connection aborted'
         return 1
     except Exception as e:
-        print >> sys.stderr, 'Error connecting to cluster: {0}'.\
+        print >> sys.stderr, 'Error connecting to cluster: {0}'. \
             format(e.__class__.__name__)
         return 1
 
@@ -692,8 +704,7 @@ def main():
             outf = open(parsed_args.output_file, 'w')
         except Exception as e:
             print >> sys.stderr, \
-                'Can\'t open output file {0}: {1}'.\
-                format(parsed_args.output_file, e)
+                'Can\'t open output file {0}: {1}'.format(parsed_args.output_file, e)
             return 1
 
     # -s behaves like a command (ceph status).
@@ -712,7 +723,7 @@ def main():
 
     if is_tell and not len(childargs):
         print >> sys.stderr, \
-                'Cannot use \'tell\' with interactive mode'
+            'Cannot use \'tell\' with interactive mode'
         return errno.EINVAL
 
     # fetch JSON sigs from command
@@ -776,7 +787,8 @@ def main():
                                                           sigdict, inbuf, verbose)
                     if ret < 0:
                         ret = -ret
-                        print >> sys.stderr, prefix + 'Second attempt of previously successful command failed with {0}: {1}'.format(errno.errorcode[ret], outs)
+                        print >> sys.stderr, prefix + 'Second attempt of previously successful command failed with {0}: {1}'.format(
+                            errno.errorcode[ret], outs)
 
         if ret < 0:
             ret = -ret
@@ -803,8 +815,8 @@ def main():
             # to satisfy consumers that skip the first line, but not annoy
             # consumers that don't.
             if parsed_args.output_format and \
-               parsed_args.output_format.startswith('json') and \
-               not compat:
+                    parsed_args.output_format.startswith('json') and \
+                    not compat:
                 sys.stdout.write('\n')
 
             # if we are prettifying things, normalize newlines.  sigh.
@@ -822,6 +834,7 @@ def main():
         return final_ret
 
     return 0
+
 
 if __name__ == '__main__':
     sys.exit(main())
