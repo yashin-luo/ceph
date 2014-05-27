@@ -28,53 +28,70 @@ ADMIN_AUID = 0
 RBD_FEATURE_LAYERING = 1
 RBD_FEATURE_STRIPINGV2 = 2
 
+
 class Error(Exception):
     pass
+
 
 class PermissionError(Error):
     pass
 
+
 class ImageNotFound(Error):
     pass
+
 
 class ImageExists(Error):
     pass
 
+
 class IOError(Error):
     pass
+
 
 class NoSpace(Error):
     pass
 
+
 class IncompleteWriteError(Error):
     pass
+
 
 class InvalidArgument(Error):
     pass
 
+
 class LogicError(Error):
     pass
+
 
 class ReadOnlyImage(Error):
     pass
 
+
 class ImageBusy(Error):
     pass
+
 
 class ImageHasSnapshots(Error):
     pass
 
+
 class FunctionNotSupported(Error):
     pass
+
 
 class ArgumentOutOfRange(Error):
     pass
 
+
 class ConnectionShutdown(Error):
     pass
 
+
 class Timeout(Error):
     pass
+
 
 def make_ex(ret, msg):
     """
@@ -87,25 +104,26 @@ def make_ex(ret, msg):
     :returns: a subclass of :class:`Error`
     """
     errors = {
-        errno.EPERM     : PermissionError,
-        errno.ENOENT    : ImageNotFound,
-        errno.EIO       : IOError,
-        errno.ENOSPC    : NoSpace,
-        errno.EEXIST    : ImageExists,
-        errno.EINVAL    : InvalidArgument,
-        errno.EROFS     : ReadOnlyImage,
-        errno.EBUSY     : ImageBusy,
-        errno.ENOTEMPTY : ImageHasSnapshots,
-        errno.ENOSYS    : FunctionNotSupported,
-        errno.EDOM      : ArgumentOutOfRange,
-        errno.ESHUTDOWN : ConnectionShutdown,
-        errno.ETIMEDOUT : Timeout,
-        }
+        errno.EPERM: PermissionError,
+        errno.ENOENT: ImageNotFound,
+        errno.EIO: IOError,
+        errno.ENOSPC: NoSpace,
+        errno.EEXIST: ImageExists,
+        errno.EINVAL: InvalidArgument,
+        errno.EROFS: ReadOnlyImage,
+        errno.EBUSY: ImageBusy,
+        errno.ENOTEMPTY: ImageHasSnapshots,
+        errno.ENOSYS: FunctionNotSupported,
+        errno.EDOM: ArgumentOutOfRange,
+        errno.ESHUTDOWN: ConnectionShutdown,
+        errno.ETIMEDOUT: Timeout,
+    }
     ret = abs(ret)
     if ret in errors:
         return errors[ret](msg)
     else:
         return Error(msg + (": error code %d" % ret))
+
 
 class rbd_image_info_t(Structure):
     _fields_ = [("size", c_uint64),
@@ -116,10 +134,12 @@ class rbd_image_info_t(Structure):
                 ("parent_pool", c_int64),
                 ("parent_name", c_char * 96)]
 
+
 class rbd_snap_info_t(Structure):
     _fields_ = [("id", c_uint64),
                 ("size", c_uint64),
                 ("name", c_char_p)]
+
 
 def load_librbd():
     """
@@ -136,10 +156,12 @@ def load_librbd():
     except OSError as e:
         raise EnvironmentError("Unable to load librbd: %s" % e)
 
+
 class RBD(object):
     """
     This class wraps librbd CRUD functions.
     """
+
     def __init__(self):
         self.librbd = load_librbd()
 
@@ -253,8 +275,8 @@ class RBD(object):
         ret = self.librbd.rbd_clone(p_ioctx.io, c_char_p(p_name),
                                     c_char_p(p_snapname),
                                     c_ioctx.io, c_char_p(c_name),
-                                          c_uint64(features),
-                                          byref(c_int(order)))
+                                    c_uint64(features),
+                                    byref(c_int(order)))
         if ret < 0:
             raise make_ex(ret, 'error creating clone')
 
@@ -316,6 +338,7 @@ class RBD(object):
         ret = self.librbd.rbd_rename(ioctx.io, c_char_p(src), c_char_p(dest))
         if ret != 0:
             raise make_ex(ret, 'error renaming image')
+
 
 class Image(object):
     """
@@ -440,14 +463,14 @@ class Image(object):
         if ret != 0:
             raise make_ex(ret, 'error getting info for image %s' % (self.name,))
         return {
-            'size'              : info.size,
-            'obj_size'          : info.obj_size,
-            'num_objs'          : info.num_objs,
-            'order'             : info.order,
-            'block_name_prefix' : info.block_name_prefix,
-            'parent_pool'       : info.parent_pool,
-            'parent_name'       : info.parent_name
-            }
+            'size': info.size,
+            'obj_size': info.obj_size,
+            'num_objs': info.num_objs,
+            'order': info.order,
+            'block_name_prefix': info.block_name_prefix,
+            'parent_pool': info.parent_pool,
+            'parent_name': info.parent_name
+        }
 
     def parent_info(self):
         ret = -errno.ERANGE
@@ -457,7 +480,7 @@ class Image(object):
             name = create_string_buffer(size)
             snapname = create_string_buffer(size)
             ret = self.librbd.rbd_get_parent_info(self.image, pool, len(pool),
-                name, len(name), snapname, len(snapname))
+                                                  name, len(name), snapname, len(snapname))
             if ret == -errno.ERANGE:
                 size *= 2
 
@@ -857,10 +880,10 @@ written." % (self.name, ret, length))
         cookies = c_cookies.raw[:cookies_size.value - 1].split('\0')
         addrs = c_addrs.raw[:addrs_size.value - 1].split('\0')
         return {
-            'tag'       : c_tag.value,
-            'exclusive' : exclusive.value == 1,
-            'lockers'   : zip(clients, cookies, addrs),
-            }
+            'tag': c_tag.value,
+            'exclusive': exclusive.value == 1,
+            'lockers': zip(clients, cookies, addrs),
+        }
 
     def lock_exclusive(self, cookie):
         """
@@ -915,6 +938,7 @@ written." % (self.name, ret, length))
         if ret < 0:
             raise make_ex(ret, 'error unlocking image')
 
+
 class DiffIterateCB(object):
     def __init__(self, cb):
         self.cb = cb
@@ -922,6 +946,7 @@ class DiffIterateCB(object):
     def callback(self, offset, length, exists, unused):
         self.cb(offset, length, exists == 1)
         return 0
+
 
 class SnapIterator(object):
     """
@@ -937,6 +962,7 @@ class SnapIterator(object):
 
     * ``name`` (str) - name of the snapshot
     """
+
     def __init__(self, image):
         self.librbd = image.librbd
         num_snaps = c_int(10)
@@ -953,10 +979,10 @@ class SnapIterator(object):
     def __iter__(self):
         for i in xrange(self.num_snaps):
             yield {
-                'id'   : self.snaps[i].id,
-                'size' : self.snaps[i].size,
-                'name' : self.snaps[i].name,
-                }
+                'id': self.snaps[i].id,
+                'size': self.snaps[i].size,
+                'name': self.snaps[i].name,
+            }
 
     def __del__(self):
         self.librbd.rbd_snap_list_end(self.snaps)
