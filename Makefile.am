@@ -37,6 +37,13 @@ check-local:
 	@cd src/gtest && $(MAKE) $(AM_MAKEFLAGS) lib/libgtest.a lib/libgtest_main.a
 #	exercise cli tools
 	$(srcdir)/src/test/run-cli-tests '$(top_builddir)/src/test'
+#   check python code compliance with PEP8
+	pep8 --ignore=E501 $(srcdir)/src/pybind/rados.py \
+		 $(srcdir)/src/pybind/cephfs.py \
+		 $(srcdir)/src/pybind/rbd.py \
+		 $(srcdir)/src/pybind/ceph_argparse.py \
+		 $(srcdir)/src/pybind/ceph_rest_api.py \
+		 $(srcdir)/src/ceph.in
 
 # "make distclean" both runs this and recurses into src/gtest, if
 # gtest is in DIST_SUBDIRS. Take extra care to not fail when
