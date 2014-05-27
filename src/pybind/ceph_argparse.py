@@ -20,11 +20,13 @@ import sys
 import types
 import uuid
 
+
 class ArgumentError(Exception):
     """
     Something wrong with arguments
     """
     pass
+
 
 class ArgumentNumber(ArgumentError):
     """
@@ -32,11 +34,13 @@ class ArgumentNumber(ArgumentError):
     """
     pass
 
+
 class ArgumentFormat(ArgumentError):
     """
     Argument value has wrong format
     """
     pass
+
 
 class ArgumentValid(ArgumentError):
     """
@@ -44,11 +48,13 @@ class ArgumentValid(ArgumentError):
     """
     pass
 
+
 class ArgumentTooFew(ArgumentError):
     """
     Fewer arguments than descriptors in signature; may mean to continue
     the search, so gets a special exception type
     """
+
 
 class ArgumentPrefix(ArgumentError):
     """
@@ -56,11 +62,13 @@ class ArgumentPrefix(ArgumentError):
     """
     pass
 
+
 class JsonFormat(Exception):
     """
     some syntactic or semantic issue with the JSON
     """
     pass
+
 
 class CephArgtype(object):
     """
@@ -71,6 +79,7 @@ class CephArgtype(object):
     method validates a string against that initialized instance,
     throwing ArgumentError if there's a problem.
     """
+
     def __init__(self, **kwargs):
         """
         set any per-instance validation parameters here
@@ -110,11 +119,13 @@ class CephArgtype(object):
         """
         return '<{0}>'.format(self.__class__.__name__)
 
+
 class CephInt(CephArgtype):
     """
     range-limited integers, [+|-][0-9]+ or 0x[0-9a-f]+
     range: list of 1 or 2 ints, [min] or [min,max]
     """
+
     def __init__(self, range=''):
         if range == '':
             self.range = list()
@@ -150,6 +161,7 @@ class CephFloat(CephArgtype):
     range-limited float type
     range: list of 1 or 2 floats, [min] or [min, max]
     """
+
     def __init__(self, range=''):
         if range == '':
             self.range = list()
@@ -178,17 +190,19 @@ class CephFloat(CephArgtype):
             r = '[{0}-{1}]'.format(self.range[0], self.range[1])
         return '<float{0}>'.format(r)
 
+
 class CephString(CephArgtype):
     """
     String; pretty generic.  goodchars is a RE char class of valid chars
     """
+
     def __init__(self, goodchars=''):
         from string import printable
+
         try:
             re.compile(goodchars)
         except:
-            raise ValueError('CephString(): "{0}" is not a valid RE'.\
-                format(goodchars))
+            raise ValueError('CephString(): "{0}" is not a valid RE'.format(goodchars))
         self.goodchars = goodchars
         self.goodset = frozenset(
             [c for c in printable if re.match(goodchars, c)]
@@ -197,8 +211,7 @@ class CephString(CephArgtype):
     def valid(self, s, partial=False):
         sset = set(s)
         if self.goodset and not sset <= self.goodset:
-            raise ArgumentFormat("invalid chars {0} in {1}".\
-                format(''.join(sset - self.goodset), s))
+            raise ArgumentFormat("invalid chars {0} in {1}".format(''.join(sset - self.goodset), s))
         self.val = s
 
     def __str__(self):
@@ -207,10 +220,12 @@ class CephString(CephArgtype):
             b += '(goodchars {0})'.format(self.goodchars)
         return '<string{0}>'.format(b)
 
+
 class CephSocketpath(CephArgtype):
     """
     Admin socket path; check that it's readable and S_ISSOCK
     """
+
     def valid(self, s, partial=False):
         mode = os.stat(s).st_mode
         if not stat.S_ISSOCK(mode):
@@ -220,10 +235,12 @@ class CephSocketpath(CephArgtype):
     def __str__(self):
         return '<admin-socket-path>'
 
+
 class CephIPAddr(CephArgtype):
     """
     IP address (v4 or v6) with optional port
     """
+
     def valid(self, s, partial=False):
         # parse off port, use socket to validate addr
         type = 6
@@ -235,7 +252,7 @@ class CephIPAddr(CephArgtype):
             port = s.find(':')
             if (port != -1):
                 a = s[:port]
-                p = s[port+1:]
+                p = s[port + 1:]
                 if int(p) > 65535:
                     raise ArgumentValid('{0}: invalid IPv4 port'.format(p))
             else:
@@ -251,9 +268,9 @@ class CephIPAddr(CephArgtype):
                 end = s.find(']')
                 if end == -1:
                     raise ArgumentFormat('{0} missing terminating ]'.format(s))
-                if s[end+1] == ':':
+                if s[end + 1] == ':':
                     try:
-                        p = int(s[end+2])
+                        p = int(s[end + 2])
                     except:
                         raise ArgumentValid('{0}: bad port number'.format(s))
                 a = s[1:end]
@@ -273,10 +290,12 @@ class CephIPAddr(CephArgtype):
     def __str__(self):
         return '<IPaddr[:port]>'
 
+
 class CephEntityAddr(CephIPAddr):
     """
     EntityAddress, that is, IP address[/nonce]
     """
+
     def valid(self, s, partial=False):
         nonce = None
         if '/' in s:
@@ -292,33 +311,38 @@ class CephEntityAddr(CephIPAddr):
                 pass
             if nonce_long is None or nonce_long < 0:
                 raise ArgumentValid(
-                    '{0}: invalid entity, nonce {1} not integer > 0'.\
-                    format(s, nonce)
+                    '{0}: invalid entity, nonce {1} not integer > 0'.format(s, nonce)
                 )
         self.val = s
 
     def __str__(self):
         return '<EntityAddr>'
 
+
 class CephPoolname(CephArgtype):
     """
     Pool name; very little utility
     """
+
     def __str__(self):
         return '<poolname>'
+
 
 class CephObjectname(CephArgtype):
     """
     Object name.  Maybe should be combined with Pool name as they're always
     present in pairs, and then could be checked for presence
     """
+
     def __str__(self):
         return '<objectname>'
+
 
 class CephPgid(CephArgtype):
     """
     pgid, in form N.xxx (N = pool number, xxx = hex pgnum)
     """
+
     def valid(self, s, partial=False):
         if s.find('.') == -1:
             raise ArgumentFormat('pgid has no .')
@@ -334,6 +358,7 @@ class CephPgid(CephArgtype):
     def __str__(self):
         return '<pgid>'
 
+
 class CephName(CephArgtype):
     """
     Name (type.id) where:
@@ -342,6 +367,7 @@ class CephName(CephArgtype):
 
     Also accept '*'
     """
+
     def __init__(self):
         self.nametype = None
         self.nameid = None
@@ -369,12 +395,14 @@ class CephName(CephArgtype):
     def __str__(self):
         return '<name (type.id)>'
 
+
 class CephOsdName(CephArgtype):
     """
     Like CephName, but specific to osds: allow <id> alone
 
     osd.<id>, or <id>, or *, where id is a base10 int
     """
+
     def __init__(self):
         self.nametype = None
         self.nameid = None
@@ -401,10 +429,12 @@ class CephOsdName(CephArgtype):
     def __str__(self):
         return '<osdname (id|osd.id)>'
 
+
 class CephChoices(CephArgtype):
     """
     Set of string literals; init with valid choices
     """
+
     def __init__(self, strings='', **kwargs):
         self.strings = strings.split('|')
 
@@ -421,7 +451,7 @@ class CephChoices(CephArgtype):
             if t.startswith(s):
                 self.val = s
                 return
-        raise ArgumentValid("{0} not in {1}".  format(s, self))
+        raise ArgumentValid("{0} not in {1}".format(s, self))
 
     def __str__(self):
         if len(self.strings) == 1:
@@ -429,10 +459,12 @@ class CephChoices(CephArgtype):
         else:
             return '{0}'.format('|'.join(self.strings))
 
+
 class CephFilepath(CephArgtype):
     """
     Openable file
     """
+
     def valid(self, s, partial=False):
         try:
             f = open(s, 'a+')
@@ -444,10 +476,12 @@ class CephFilepath(CephArgtype):
     def __str__(self):
         return '<outfilename>'
 
+
 class CephFragment(CephArgtype):
     """
     'Fragment' ??? XXX
     """
+
     def valid(self, s, partial=False):
         if s.find('/') == -1:
             raise ArgumentFormat('{0}: no /'.format(s))
@@ -473,6 +507,7 @@ class CephUUID(CephArgtype):
     """
     CephUUID: pretty self-explanatory
     """
+
     def valid(self, s, partial=False):
         try:
             uuid.UUID(s)
@@ -488,6 +523,7 @@ class CephPrefix(CephArgtype):
     """
     CephPrefix: magic type for "all the first n fixed strings"
     """
+
     def __init__(self, prefix=''):
         self.prefix = prefix
 
@@ -527,15 +563,16 @@ class argdesc(object):
     valid() will later be called with input to validate against it,
     and will store the validated value in self.instance.val for extraction.
     """
+
     def __init__(self, t, name=None, n=1, req=True, **kwargs):
         if isinstance(t, types.StringTypes):
             self.t = CephPrefix
-            self.typeargs = {'prefix':t}
+            self.typeargs = {'prefix': t}
             self.req = True
         else:
             self.t = t
             self.typeargs = kwargs
-            self.req = bool(req == True or req == 'True')
+            self.req = bool(req or req == 'True')
 
         self.name = name
         self.N = (n in ['n', 'N'])
@@ -562,7 +599,7 @@ class argdesc(object):
 
     def __str__(self):
         if ((self.t == CephChoices and len(self.instance.strings) == 1)
-            or (self.t == CephPrefix)):
+                or (self.t == CephPrefix)):
             s = str(self.instance)
         else:
             s = '{0}({1})'.format(self.name, str(self.instance))
@@ -588,11 +625,13 @@ class argdesc(object):
             s = '{' + s + '}'
         return s
 
+
 def concise_sig(sig):
     """
     Return string representation of sig useful for syntax reference in help
     """
     return ' '.join([d.helpstr() for d in sig])
+
 
 def descsort(sh1, sh2):
     """
@@ -600,6 +639,7 @@ def descsort(sh1, sh2):
     strings in the descriptor; this works out to just the leading strings.
     """
     return cmp(concise_sig(sh1['sig']), concise_sig(sh2['sig']))
+
 
 def parse_funcsig(sig):
     """
@@ -612,7 +652,7 @@ def parse_funcsig(sig):
         argnum += 1
         if isinstance(desc, types.StringTypes):
             t = CephPrefix
-            desc = {'type':t, 'name':'prefix', 'prefix':desc}
+            desc = {'type': t, 'name': 'prefix', 'prefix': desc}
         else:
             # not a simple string, must be dict
             if not 'type' in desc:
@@ -623,7 +663,7 @@ def parse_funcsig(sig):
             # locally-defined class. otherwise, we haven't a clue.
             if desc['type'] in globals():
                 t = globals()[desc['type']]
-                if type(t) != types.TypeType:
+                if not isinstance(t, types.TypeType):
                     s = 'unknown type {0}'.format(desc['type'])
                     raise JsonFormat(s)
             else:
@@ -693,6 +733,7 @@ def parse_json_funcsigs(s, consumer):
         sigdict[cmdtag] = cmd
     return sigdict
 
+
 def validate_one(word, desc, partial=False):
     """
     validate_one(word, desc, partial=False)
@@ -706,6 +747,7 @@ def validate_one(word, desc, partial=False):
     desc.numseen += 1
     if desc.N:
         desc.n = desc.numseen + 1
+
 
 def matchnum(args, signature, partial=False):
     """
@@ -745,6 +787,7 @@ def matchnum(args, signature, partial=False):
             matchcnt += 1
     return matchcnt
 
+
 def get_next_arg(desc, args):
     '''
     Get either the value matching key 'desc.name' or the next arg in
@@ -770,6 +813,7 @@ def get_next_arg(desc, args):
             arg = arg[0]
     return arg
 
+
 def store_arg(desc, d):
     '''
     Store argument described by, and held in, thanks to valid(),
@@ -793,6 +837,7 @@ def store_arg(desc, d):
     else:
         # if first CephPrefix or any other type, just set it
         d[desc.name] = desc.instance.val
+
 
 def validate(args, signature, partial=False):
     """
@@ -836,8 +881,7 @@ def validate(args, signature, partial=False):
                     if partial:
                         return d
                     raise ArgumentNumber(
-                        'saw {0} of {1}, expected at least 1'.\
-                         format(desc.numseen, desc)
+                        'saw {0} of {1}, expected at least 1'.format(desc.numseen, desc)
                     )
                 elif not desc.N and desc.numseen < desc.n:
                     # wanted n, got too few
@@ -849,8 +893,7 @@ def validate(args, signature, partial=False):
                             'missing required parameter {0}'.format(desc)
                         )
                     raise ArgumentNumber(
-                        'saw {0} of {1}, expected {2}'.\
-                        format(desc.numseen, desc, desc.n)
+                        'saw {0} of {1}, expected {2}'.format(desc.numseen, desc, desc.n)
                     )
                 break
 
@@ -888,10 +931,12 @@ def validate(args, signature, partial=False):
     # Finally, success
     return d
 
+
 def cmdsiglen(sig):
     sigdict = sig.values()
     assert len(sigdict) == 1
     return len(sig.values()[0]['sig'])
+
 
 def validate_command(sigdict, args, verbose=False):
     """
@@ -912,20 +957,20 @@ def validate_command(sigdict, args, verbose=False):
                 if verbose:
                     print >> sys.stderr, \
                         "better match: {0} > {1}: {2}:{3} ".format(matched,
-                                      best_match_cnt, cmdtag, concise_sig(sig))
+                                                                   best_match_cnt, cmdtag, concise_sig(sig))
                 best_match_cnt = matched
-                bestcmds = [{cmdtag:cmd}]
+                bestcmds = [{cmdtag: cmd}]
             elif matched == best_match_cnt:
                 if verbose:
                     print >> sys.stderr, \
                         "equal match: {0} > {1}: {2}:{3} ".format(matched,
-                                      best_match_cnt, cmdtag, concise_sig(sig))
-                bestcmds.append({cmdtag:cmd})
+                                                                  best_match_cnt, cmdtag, concise_sig(sig))
+                bestcmds.append({cmdtag: cmd})
 
         # Sort bestcmds by number of args so we can try shortest first
         # (relies on a cmdsig being key,val where val is a list of len 1)
         bestcmds_sorted = sorted(bestcmds,
-                                 cmp=lambda x,y:cmp(cmdsiglen(x), cmdsiglen(y)))
+                                 cmp=lambda x, y: cmp(cmdsiglen(x), cmdsiglen(y)))
 
         if verbose:
             print >> sys.stderr, "bestcmds_sorted: "
@@ -950,7 +995,7 @@ def validate_command(sigdict, args, verbose=False):
                     # the next one matches completely.  Whine, but pass.
                     if verbose:
                         print >> sys.stderr, 'Not enough args supplied for ', \
-                                              concise_sig(sig)
+                            concise_sig(sig)
                 except ArgumentError as e:
                     # Solid mismatch on an arg (type, range, etc.)
                     # Stop now, because we have the right command but
@@ -970,6 +1015,7 @@ def validate_command(sigdict, args, verbose=False):
 
         return valid_dict
 
+
 def find_cmd_target(childargs):
     """
     Using a minimal validation, figure out whether the command
@@ -978,7 +1024,7 @@ def find_cmd_target(childargs):
     right daemon.
     Returns ('osd', osdid), ('pg', pgid), or ('mon', '')
     """
-    sig = parse_funcsig(['tell', {'name':'target', 'type':'CephName'}])
+    sig = parse_funcsig(['tell', {'name': 'target', 'type': 'CephName'}])
     try:
         valid_dict = validate(childargs, sig, partial=True)
     except ArgumentError:
@@ -992,7 +1038,7 @@ def find_cmd_target(childargs):
             name.valid(valid_dict['target'])
             return name.nametype, name.nameid
 
-    sig = parse_funcsig(['tell', {'name':'pgid', 'type':'CephPgid'}])
+    sig = parse_funcsig(['tell', {'name': 'pgid', 'type': 'CephPgid'}])
     try:
         valid_dict = validate(childargs, sig, partial=True)
     except ArgumentError:
@@ -1002,7 +1048,7 @@ def find_cmd_target(childargs):
             # pg doesn't need revalidation; the string is fine
             return 'pg', valid_dict['pgid']
 
-    sig = parse_funcsig(['pg', {'name':'pgid', 'type':'CephPgid'}])
+    sig = parse_funcsig(['pg', {'name': 'pgid', 'type': 'CephPgid'}])
     try:
         valid_dict = validate(childargs, sig, partial=True)
     except ArgumentError:
@@ -1012,6 +1058,7 @@ def find_cmd_target(childargs):
             return 'pg', valid_dict['pgid']
 
     return 'mon', ''
+
 
 def send_command(cluster, target=('mon', ''), cmd=None, inbuf='', timeout=0,
                  verbose=False):
@@ -1032,7 +1079,7 @@ def send_command(cluster, target=('mon', ''), cmd=None, inbuf='', timeout=0,
             osdid = target[1]
 
             if verbose:
-                print >> sys.stderr, 'submit {0} to osd.{1}'.\
+                print >> sys.stderr, 'submit {0} to osd.{1}'. \
                     format(cmd, osdid)
             ret, outbuf, outs = \
                 cluster.osd_command(osdid, cmd, inbuf, timeout)
@@ -1048,14 +1095,14 @@ def send_command(cluster, target=('mon', ''), cmd=None, inbuf='', timeout=0,
                 cmddict = dict(pgid=pgid)
             cmd = [json.dumps(cmddict)]
             if verbose:
-                print >> sys.stderr, 'submit {0} for pgid {1}'.\
+                print >> sys.stderr, 'submit {0} for pgid {1}'. \
                     format(cmd, pgid)
             ret, outbuf, outs = \
                 cluster.pg_command(pgid, cmd, inbuf, timeout)
 
         elif target[0] == 'mon':
             if verbose:
-                print >> sys.stderr, '{0} to {1}'.\
+                print >> sys.stderr, '{0} to {1}'. \
                     format(cmd, target[0])
             if target[1] == '':
                 ret, outbuf, outs = cluster.mon_command(cmd, inbuf, timeout)
@@ -1072,6 +1119,7 @@ def send_command(cluster, target=('mon', ''), cmd=None, inbuf='', timeout=0,
 
     return ret, outbuf, outs
 
+
 def json_command(cluster, target=('mon', ''), prefix=None, argdict=None,
                  inbuf='', timeout=0, verbose=False):
     """
@@ -1083,7 +1131,7 @@ def json_command(cluster, target=('mon', ''), prefix=None, argdict=None,
     """
     cmddict = {}
     if prefix:
-        cmddict.update({'prefix':prefix})
+        cmddict.update({'prefix': prefix})
     if argdict:
         cmddict.update(argdict)
 
@@ -1114,5 +1162,3 @@ def json_command(cluster, target=('mon', ''), prefix=None, argdict=None,
             raise
 
     return ret, outbuf, outs
-
-
