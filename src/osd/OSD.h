@@ -23,6 +23,7 @@
 
 #include "common/Mutex.h"
 #include "common/RWLock.h"
+#include "common/NotifyingLock.h"
 #include "common/Timer.h"
 #include "common/WorkQueue.h"
 #include "common/LogClient.h"
@@ -1623,7 +1624,7 @@ private:
 
 protected:
   // -- placement groups --
-  RWLock pg_map_lock; // this lock orders *above* individual PG _locks
+  NotifyingLock pg_map_lock; // this lock orders *above* individual PG _locks
   ceph::unordered_map<spg_t, PG*> pg_map; // protected by pg_map lock
 
   map<spg_t, list<PG::CephPeeringEvtRef> > peering_wait_for_split;
