@@ -167,6 +167,7 @@ noinst_HEADERS += \
 	common/Mutex.h \
 	common/PrebufferedStreambuf.h \
 	common/RWLock.h \
+	common/NotifyingLock.h \
 	common/Semaphore.h \
 	common/SimpleRNG.h \
 	common/TextTable.h \
