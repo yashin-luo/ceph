@@ -93,12 +93,12 @@ int64_t librados::RadosClient::lookup_pool(const char *name)
     map<string, int64_t>::iterator iter = pool_cache.find(name);
     if (iter != pool_cache.end()) {
       uint64_t val = iter->second;
-      pool_cache_rwl.unlock();
+      pool_cache_rwl.put_read();
       return val;
     }
   }
 
-  pool_cache_rwl.unlock();
+  pool_cache_rwl.put_read();
 
   lock.Lock();
 
@@ -109,7 +109,7 @@ int64_t librados::RadosClient::lookup_pool(const char *name)
   pool_cache_rwl.get_write();
   lock.Unlock();
   if (ret < 0) {
-    pool_cache_rwl.unlock();
+    pool_cache_rwl.put_write();
     return -ENOENT;
   }
 
@@ -118,7 +118,7 @@ int64_t librados::RadosClient::lookup_pool(const char *name)
     pool_cache_epoch = osdmap_epoch;
   }
   pool_cache[name] = ret;
-  pool_cache_rwl.unlock();
+  pool_cache_rwl.put_write();
   return ret;
 }
 
@@ -391,7 +391,7 @@ bool librados::RadosClient::_dispatch(Message *m)
     objecter->handle_osd_map(static_cast<MOSDMap*>(m));
     pool_cache_rwl.get_write();
     osdmap_epoch = osdmap.get_epoch();
-    pool_cache_rwl.unlock();
+    pool_cache_rwl.put_write();
     cond.Signal();
     break;
   case MSG_GETPOOLSTATSREPLY:

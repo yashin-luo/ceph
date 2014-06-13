@@ -21,8 +21,10 @@ int ObjectCache::get(string& name, ObjectCacheInfo& info, uint32_t mask)
 
   if (lru_counter - entry.lru_promotion_ts > lru_window) {
     ldout(cct, 20) << "cache get: touching lru, lru_counter=" << lru_counter << " promotion_ts=" << entry.lru_promotion_ts << dendl;
-    lock.unlock();
-    lock.get_write(); /* promote lock to writer */
+    lock.put_read();
+    lock.get_write(); /* promote lock to writer; the put_read() function
+                         will handle it correctly because it's just using
+                         pthread_rwlock_unlock anyway*/
 
     /* check again, we might have lost a race here */
     if (lru_counter - entry.lru_promotion_ts > lru_window) {

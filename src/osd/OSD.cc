@@ -7540,7 +7540,7 @@ void OSD::check_replay_queue()
     pg_map_lock.get_read();
     if (pg_map.count(pgid)) {
       PG *pg = _lookup_lock_pg_with_map_lock_held(pgid);
-      pg_map_lock.unlock();
+      pg_map_lock.put_read();
       dout(10) << "check_replay_queue " << *pg << dendl;
       if (pg->is_active() &&
           pg->is_replay() &&
@@ -7550,7 +7550,7 @@ void OSD::check_replay_queue()
       }
       pg->unlock();
     } else {
-      pg_map_lock.unlock();
+      pg_map_lock.put_read();
       dout(10) << "check_replay_queue pgid " << pgid << " (not found)" << dendl;
     }
   }

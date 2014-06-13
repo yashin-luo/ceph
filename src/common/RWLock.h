@@ -41,12 +41,14 @@ public:
     pthread_rwlock_destroy(&L);
   }
 
+private:
   void unlock() const {
     if (g_lockdep) id = lockdep_will_unlock(name, id);
     int r = pthread_rwlock_unlock(&L);
     assert(r == 0);
   }
 
+public:
   // read
   void get_read() const {
     if (g_lockdep) id = lockdep_will_lock(name, id);
@@ -83,7 +85,6 @@ public:
     unlock();
   }
 
-public:
   class RLocker {
     const RWLock &m_lock;
 

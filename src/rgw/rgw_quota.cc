@@ -496,7 +496,7 @@ protected:
   void swap_modified_buckets(map<rgw_bucket, string>& out) {
     rwlock.get_write();
     modified_buckets.swap(out);
-    rwlock.unlock();
+    rwlock.put_write();
   }
 
   template<class T> /* easier doing it as a template, Thread doesn't have ->stop() */
@@ -547,7 +547,7 @@ public:
     down_flag.set(1);
     rwlock.get_write();
     stop_thread(&buckets_sync_thread);
-    rwlock.unlock();
+    rwlock.put_write();
     stop_thread(&user_sync_thread);
   }
 };
@@ -650,12 +650,12 @@ void RGWUserStatsCache::data_modified(const string& user, rgw_bucket& bucket)
   /* racy, but it's ok */
   rwlock.get_read();
   bool need_update = modified_buckets.find(bucket) == modified_buckets.end();
-  rwlock.unlock();
+  rwlock.put_read();
 
   if (need_update) {
     rwlock.get_write();
     modified_buckets[bucket] = user;
-    rwlock.unlock();
+    rwlock.put_write();
   }
 }
 
