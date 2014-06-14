@@ -135,8 +135,10 @@ void ReplicatedPG::wait_for_all_missing(OpRequestRef op)
 
 bool ReplicatedPG::is_degraded_object(const hobject_t& soid)
 {
-  if (pg_log.get_missing().missing.count(soid))
+  if (pg_log.get_missing().missing.count(soid)) {
+    dout(20) << __func__ << " locally missing" << dendl;
     return true;
+  }
   for (unsigned i = 1; i < acting.size(); i++) {
     int peer = acting[i];
     if (peer_missing.count(peer) &&
