@@ -697,7 +697,10 @@ void ReplicatedPG::do_op(OpRequestRef op)
     return;
   }
 
-  if (head == backfill_pos) {
+  if (backfill_reserved && // hack: this is not safe if a completed
+			   // reservation races with a request we
+			   // should have blocked.
+      head == backfill_pos) {
     dout(20) << __func__ << " head == backfill_pos" << dendl;
     wait_for_backfill_pos(op);
     return;
