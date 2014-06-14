@@ -140,8 +140,10 @@ bool ReplicatedPG::is_degraded_object(const hobject_t& soid)
   for (unsigned i = 1; i < acting.size(); i++) {
     int peer = acting[i];
     if (peer_missing.count(peer) &&
-	peer_missing[peer].missing.count(soid))
+	peer_missing[peer].missing.count(soid)) {
+      dout(20) << __func__ << " peer_missing" << dendl;
       return true;
+    }
 
     // Object is degraded if after last_backfill AND
     // we have are backfilling it
@@ -151,7 +153,7 @@ bool ReplicatedPG::is_degraded_object(const hobject_t& soid)
 	backfills_in_flight.count(soid)) {
       dout(20) << __func__ << " peer is backfill, "
 	       << "peer last_backfill " << peer_info[peer].last_backfill << " <= soid,"
-	       << " backfill_pos " << backfil_pos << " >= soid,"
+	       << " backfill_pos " << backfill_pos << " >= soid,"
 	       << " in flight" << dendl;
       return true;
     }
