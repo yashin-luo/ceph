@@ -148,8 +148,13 @@ bool ReplicatedPG::is_degraded_object(const hobject_t& soid)
     if (peer == backfill_target &&
 	peer_info[peer].last_backfill <= soid &&
 	backfill_pos >= soid &&
-	backfills_in_flight.count(soid))
+	backfills_in_flight.count(soid)) {
+      dout(20) << __func__ << " peer is backfill, "
+	       << "peer last_backfill " << peer_info[peer].last_backfill << " <= soid,"
+	       << " backfill_pos " << backfil_pos << " >= soid,"
+	       << " in flight" << dendl;
       return true;
+    }
   }
   return false;
 }
@@ -676,17 +681,20 @@ void ReplicatedPG::do_op(OpRequestRef op)
 
   // missing object?
   if (is_missing_object(head)) {
+    dout(20) << __func__ << " is_missing_object(ehad)" << dendl;
     wait_for_missing_object(head, op);
     return;
   }
 
   // degraded object?
   if (op->may_write() && is_degraded_object(head)) {
+    dout(20) << __func__ << " is_degraded_object(ehad)" << dendl;
     wait_for_degraded_object(head, op);
     return;
   }
 
   if (head == backfill_pos) {
+    dout(20) << __func__ << " head == backfill_pos" << dendl;
     wait_for_backfill_pos(op);
     return;
   }
@@ -696,12 +704,14 @@ void ReplicatedPG::do_op(OpRequestRef op)
 		    CEPH_SNAPDIR, m->get_pg().ps(), info.pgid.pool(),
 		    m->get_object_locator().nspace);
   if (is_missing_object(snapdir)) {
+    dout(20) << __func__ << " is_missing_object(snapdir)" << dendl;
     wait_for_missing_object(snapdir, op);
     return;
   }
 
   // degraded object?
   if (op->may_write() && is_degraded_object(snapdir)) {
+    dout(20) << __func__ << " is_degraded_object(snapdir)" << dendl;
     wait_for_degraded_object(snapdir, op);
     return;
   }
