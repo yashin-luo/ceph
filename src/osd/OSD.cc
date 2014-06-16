@@ -3676,7 +3676,7 @@ void OSD::ms_handle_fast_connect(Connection *con)
   if (con->get_peer_type() != CEPH_ENTITY_TYPE_MON) {
     Session *s = static_cast<Session*>(con->get_priv());
     if (!s) {
-      s = new Session;
+      s = new Session(this);
       con->set_priv(s->get());
       s->con = con;
       dout(10) << " new session (outgoing)" << s << " con=" << s->con
@@ -3694,7 +3694,7 @@ void OSD::ms_handle_fast_accept(Connection *con)
   if (con->get_peer_type() != CEPH_ENTITY_TYPE_MON) {
     Session *s = static_cast<Session*>(con->get_priv());
     if (!s) {
-      s = new Session();
+      s = new Session(this);
       con->set_priv(s->get());
       s->con = con;
       dout(10) << "new session (incoming)" << s << " con=" << con
@@ -4929,6 +4929,35 @@ bool OSD::ms_dispatch(Message *m)
   return true;
 }
 
+struct C_SessionWaker : public GenContext<ThreadPool::TPHandle&>
+{
+  OSD *osd;
+  OSD::Session *session;
+public:
+  C_SessionWaker(OSD *o, OSD::Session *s) : osd(o),
+  session((OSD::Session*)s->get()) {}
+  ~C_SessionWaker() { session->put(); }
+
+  void finish(ThreadPool::TPHandle& tp) {
+    Mutex::Locker l(session->session_dispatch_lock);
+    OSDMapRef nextmap = osd->service.get_nextmap_reserved();
+    osd->update_waiting_for_pg(session, nextmap); // TODO: is this necessary?
+    session->wakeup_queued = false;
+    osd->dispatch_session_waiting(session, nextmap);
+    osd->service.release_map(nextmap);
+  }
+};
+
+void OSD::Session::notify()
+{
+  if (wakeup_queued) {
+    // we don't need two wakeups queued
+    return;
+  }
+  wakeup_queued = true;
+  osd->service.op_gen_wq.queue(new C_SessionWaker(osd, this));
+}
+
 void OSD::dispatch_session_waiting(Session *session, OSDMapRef osdmap)
 {
   assert(session->session_dispatch_lock.is_locked());
@@ -5105,7 +5134,7 @@ bool OSD::ms_verify_authorizer(Connection *con, int peer_type,
   if (isvalid) {
     Session *s = static_cast<Session *>(con->get_priv());
     if (!s) {
-      s = new Session;
+      s = new Session(this);
       con->set_priv(s->get());
       s->con = con;
       dout(10) << " new session " << s << " con=" << s->con << " addr=" << s->con->get_peer_addr() << dendl;

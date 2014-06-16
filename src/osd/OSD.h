@@ -1127,7 +1127,9 @@ public:
     }
   }
 
-  struct Session : public RefCountedObject {
+  struct Session : public RefCountedObject,
+  public NotifyingLock::Notifier {
+    OSD *osd;
     EntityName entity_name;
     OSDCap caps;
     int64_t auid;
@@ -1136,6 +1138,7 @@ public:
 
     Mutex session_dispatch_lock;
     list<OpRequestRef> waiting_on_map;
+    bool wakeup_queued; // protected by session_dispatch_lock
 
     OSDMapRef osdmap;  /// Map as of which waiting_for_pg is current
     map<spg_t, list<OpRequestRef> > waiting_for_pg;
@@ -1145,15 +1148,20 @@ public:
     Mutex received_map_lock;
     epoch_t received_map_epoch; // largest epoch seen in MOSDMap from here
 
-    Session() :
+    Session(OSD *o) :
+      osd(o),
       auid(-1), con(0),
       session_dispatch_lock("Session::session_dispatch_lock"),
+      wakeup_queued(false),
       sent_epoch_lock("Session::sent_epoch_lock"), last_sent_epoch(0),
       received_map_lock("Session::received_map_lock"), received_map_epoch(0)
     {}
 
-    
+    void notify();
   };
+  friend struct Session;
+  friend struct C_SessionWaker;
+
   void update_waiting_for_pg(Session *session, OSDMapRef osdmap);
   void session_notify_pg_create(Session *session, OSDMapRef osdmap, spg_t pgid);
   void session_notify_pg_cleared(Session *session, OSDMapRef osdmap, spg_t pgid);
