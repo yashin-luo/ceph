@@ -8010,14 +8010,15 @@ bool OSD::handle_op(OpRequestRef op, OSDMapRef osdmap)
     return true;
   }
 
-  PG *pg = get_pg_or_queue_for_pg(pgid, op);
-  if (pg) {
+  bool success = false;
+  PG *pg = try_get_pg_or_queue_for_pg(pgid, op, &success);
+  if (success && pg) {
     op->send_map_update = share_map.should_send;
     op->sent_epoch = m->get_map_epoch();
     enqueue_op(pg, op);
     share_map.should_send = false;
   }
-  return true;
+  return success;
 }
 
 template<typename T, int MSGTYPE>
