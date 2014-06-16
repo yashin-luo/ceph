@@ -2025,9 +2025,27 @@ PG *OSD::_create_lock_pg(
   return pg;
 }
 
-PG *OSD::get_pg_or_queue_for_pg(spg_t pgid, OpRequestRef op)
-{
+PG *OSD::get_pg_or_queue_for_pg(spg_t pgid, OpRequestRef op) {
   NotifyingLock::RLocker l(pg_map_lock);
+  return _get_pg_or_queue_for_pg(pgid, op);
+}
+
+PG *OSD::try_get_pg_or_queue_for_pg(spg_t pgid, OpRequestRef op, bool *success)
+{
+  Session *s = static_cast<Session*>(op->get_req()
+      ->get_connection()->get_priv());
+  *success = pg_map_lock.try_get_read(s);
+  PG *pg = NULL;
+  if (*success) {
+    pg = _get_pg_or_queue_for_pg(pgid, op);
+    pg_map_lock.put_read();
+  }
+  s->put();
+  return pg;
+}
+
+PG *OSD::_get_pg_or_queue_for_pg(spg_t pgid, OpRequestRef op)
+{
   Session *session = static_cast<Session*>(
     op->get_req()->get_connection()->get_priv());
 

@@ -1640,7 +1640,10 @@ protected:
 
   PGPool _get_pool(int id, OSDMapRef createmap);
 
+  PG *_get_pg_or_queue_for_pg(spg_t pgid, OpRequestRef op);
   PG *get_pg_or_queue_for_pg(spg_t pgid, OpRequestRef op);
+  PG *try_get_pg_or_queue_for_pg(spg_t pgid, OpRequestRef op, bool *retry);
+
   bool  _have_pg(spg_t pgid);
   PG   *_lookup_lock_pg_with_map_lock_held(spg_t pgid);
   PG   *_lookup_lock_pg(spg_t pgid);
