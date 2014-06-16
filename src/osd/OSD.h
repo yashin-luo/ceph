@@ -2295,7 +2295,8 @@ public:
   void handle_rep_scrub(MOSDRepScrub *m);
   void handle_scrub(struct MOSDScrub *m);
   void handle_osd_ping(class MOSDPing *m);
-  void handle_op(OpRequestRef op, OSDMapRef osdmap);
+  /// returns true if the Op was queued, or false if it must be retried
+  bool handle_op(OpRequestRef op, OSDMapRef osdmap);
 
   template <typename T, int MSGTYPE>
   void handle_replica_op(OpRequestRef op, OSDMapRef osdmap);

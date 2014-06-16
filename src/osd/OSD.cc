@@ -5261,11 +5261,15 @@ bool OSD::dispatch_op_fast(OpRequestRef op, OSDMapRef osdmap) {
     return false;
   }
 
+  bool ret = true;
   switch(op->get_req()->get_type()) {
   // client ops
   case CEPH_MSG_OSD_OP:
-    handle_op(op, osdmap);
+  {
+    // This Op is special: its function provides the return value
+    ret = handle_op(op, osdmap);
     break;
+  }
     // for replication etc.
   case MSG_OSD_SUBOP:
     handle_replica_op<MOSDSubOp, MSG_OSD_SUBOP>(op, osdmap);
@@ -5303,7 +5307,7 @@ bool OSD::dispatch_op_fast(OpRequestRef op, OSDMapRef osdmap) {
   default:
     assert(0);
   }
-  return true;
+  return ret;
 }
 
 void OSD::_dispatch(Message *m)
@@ -7821,13 +7825,13 @@ struct send_map_on_destruct {
   }
 };
 
-void OSD::handle_op(OpRequestRef op, OSDMapRef osdmap)
+bool OSD::handle_op(OpRequestRef op, OSDMapRef osdmap)
 {
   MOSDOp *m = static_cast<MOSDOp*>(op->get_req());
   assert(m->get_header().type == CEPH_MSG_OSD_OP);
   if (op_is_discardable(m)) {
     dout(10) << " discardable " << *m << dendl;
-    return;
+    return true;
   }
 
   // we don't need encoded payload anymore
@@ -7838,14 +7842,14 @@ void OSD::handle_op(OpRequestRef op, OSDMapRef osdmap)
     dout(4) << "handle_op '" << m->get_oid().name << "' is longer than "
 	    << MAX_CEPH_OBJECT_NAME_LEN << " bytes!" << dendl;
     service.reply_op_error(op, -ENAMETOOLONG);
-    return;
+    return true;
   }
 
   // blacklisted?
   if (osdmap->is_blacklisted(m->get_source_addr())) {
     dout(4) << "handle_op " << m->get_source_addr() << " is blacklisted" << dendl;
     service.reply_op_error(op, -EBLACKLISTED);
-    return;
+    return true;
   }
 
   // set up a map send if the Op gets blocked for some reason
@@ -7867,7 +7871,7 @@ void OSD::handle_op(OpRequestRef op, OSDMapRef osdmap)
     int r = init_op_flags(op);
     if (r) {
       service.reply_op_error(op, r);
-      return;
+      return true;
     }
   }
 
@@ -7875,7 +7879,7 @@ void OSD::handle_op(OpRequestRef op, OSDMapRef osdmap)
       !m->get_source().is_mds()) {
     if ((double)rand() / (double)RAND_MAX < cct->_conf->osd_debug_drop_op_probability) {
       dout(0) << "handle_op DEBUG artificially dropping op " << *m << dendl;
-      return;
+      return true;
     }
   }
 
@@ -7887,13 +7891,13 @@ void OSD::handle_op(OpRequestRef op, OSDMapRef osdmap)
 	!m->get_source().is_mds()) {  // FIXME: we'll exclude mds writes for now.
       // Drop the request, since the client will retry when the full
       // flag is unset.
-      return;
+      return true;
     }
 
     // invalid?
     if (m->get_snapid() != CEPH_NOSNAP) {
       service.reply_op_error(op, -EINVAL);
-      return;
+      return true;
     }
 
     // too big?
@@ -7904,7 +7908,7 @@ void OSD::handle_op(OpRequestRef op, OSDMapRef osdmap)
 	   << " > osd_max_write_size " << (cct->_conf->osd_max_write_size << 20)
 	   << " on " << *m << dendl;
       service.reply_op_error(op, -OSD_WRITETOOBIG);
-      return;
+      return true;
     }
   }
 
@@ -7918,7 +7922,7 @@ void OSD::handle_op(OpRequestRef op, OSDMapRef osdmap)
   spg_t pgid;
   if (!osdmap->get_primary_shard(_pgid, &pgid)) {
     // missing pool or acting set empty -- drop
-    return;
+    return true;
   }
 
   OSDMapRef send_map = service.try_get_map(m->get_map_epoch());
@@ -7926,7 +7930,7 @@ void OSD::handle_op(OpRequestRef op, OSDMapRef osdmap)
   if (!send_map) {
 
     dout(7) << "don't have sender's osdmap; assuming it was valid and that client will resend" << dendl;
-    return;
+    return true;
   }
   if (!send_map->have_pg_pool(pgid.pool())) {
     dout(7) << "dropping request; pool did not exist" << dendl;
@@ -7937,7 +7941,7 @@ void OSD::handle_op(OpRequestRef op, OSDMapRef osdmap)
 		      << ", client e" << m->get_map_epoch()
 		      << " when pool " << m->get_pg().pool() << " did not exist"
 		      << "\n";
-    return;
+    return true;
   } else if (send_map->get_pg_acting_role(pgid.pgid, whoami) < 0) {
     dout(7) << "we are invalid target" << dendl;
     clog.warn() << m->get_source_inst() << " misdirected " << m->get_reqid()
@@ -7949,14 +7953,14 @@ void OSD::handle_op(OpRequestRef op, OSDMapRef osdmap)
 		      << " features " << m->get_connection()->get_features()
 		      << "\n";
     service.reply_op_error(op, -ENXIO);
-    return;
+    return true;
   }
 
   // check against current map too
   if (!osdmap->have_pg_pool(pgid.pool()) ||
       osdmap->get_pg_acting_role(pgid.pgid, whoami) < 0) {
     dout(7) << "dropping; no longer have PG (or pool); client will retarget" << dendl;
-    return;
+    return true;
   }
 
   PG *pg = get_pg_or_queue_for_pg(pgid, op);
@@ -7966,6 +7970,7 @@ void OSD::handle_op(OpRequestRef op, OSDMapRef osdmap)
     enqueue_op(pg, op);
     share_map.should_send = false;
   }
+  return true;
 }
 
 template<typename T, int MSGTYPE>
