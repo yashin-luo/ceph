@@ -4261,7 +4261,7 @@ void ReplicatedPG::issue_repop(RepGather *repop, utime_t now,
       wr->set_data(repop->ctx->op->request->get_data());   // _copy_ bufferlist
     } else {
       // ship resulting transaction, log entries, and pg_stats
-      if (peer == backfill_target && soid >= backfill_pos) {
+      if (peer == backfill_target && soid >= backfill_pos && soid > pinfo.last_backfill) {
 	dout(10) << "issue_repop shipping empty opt to osd." << peer << ", object beyond backfill_pos "
 		 << backfill_pos << ", last_backfill is " << pinfo.last_backfill << dendl;
 	ObjectStore::Transaction t;
