@@ -487,6 +487,11 @@ function test_mon_osd()
 
   ceph osd tree
 
+  ceph osd stat | grep up,
+}
+
+function test_mon_osd_pool()
+{
   #
   # osd pool
   #
@@ -507,8 +512,6 @@ function test_mon_osd()
   expect_false ceph osd pool create replicated 12 12 erasure
   ceph osd lspools | grep replicated
   ceph osd pool delete replicated replicated --yes-i-really-really-mean-it
-
-  ceph osd stat | grep up,
 }
 
 function test_mon_pg()
@@ -582,7 +585,7 @@ function test_mon_pg()
   # don't test ceph osd primary-temp for now
 }
 
-function test_mon_osd_pool()
+function test_mon_osd_pool_set()
 {
 
   for s in pg_num pgp_num size min_size crash_replay_interval crush_ruleset; do
@@ -730,8 +733,9 @@ test_mon_misc ;
 test_mon_mds ;
 test_mon_mon ;
 test_mon_osd ;
-test_mon_pg ;
 test_mon_osd_pool ;
+test_mon_pg ;
+test_mon_osd_pool_set ;
 test_mon_osd_erasure_code ;
 test_mon_osd_misc ;
 test_mon_heap_profiler ;
