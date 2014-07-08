@@ -475,6 +475,8 @@ int main(int argc, const char **argv)
     return 1;
   }
 
+  new char[123];
+
   // Now close the standard file descriptors
   global_init_shutdown_stderr(g_ceph_context);
 
