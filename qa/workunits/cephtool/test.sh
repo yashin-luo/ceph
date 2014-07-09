@@ -330,6 +330,18 @@ function test_mon_misc()
 
 function test_mon_mds()
 {
+  existing_fs=$(ceph fs ls | grep "name:" | awk '{print substr($2,0,length($2)-1);}')
+  if [ -n "$existing_fs" ] ; then
+      echo "Removing existing filesystem '${existing_fs}'..."
+      ceph mds set max_mds 0
+      if $(ceph mds stat | grep active) ; then
+          ceph mds stop 0
+      fi
+      ceph mds fail 0
+      ceph fs rm $existing_fs --yes-i-really-mean-it
+      echo "Removed '${existing_fs}'."
+  fi
+
   ceph osd pool create fs_data 10
   ceph osd pool create fs_metadata 10
   ceph fs new cephfs fs_metadata fs_data
@@ -396,13 +408,18 @@ function test_mon_mds()
   ceph mds add_data_pool mds-ec-pool 2>$TMPFILE
   check_response 'erasure-code' $? 22
   set -e
-  ec_poolnum=$(ceph osd dump | grep 'pool.*mds-ec-pool' | awk '{print $2;}')
-  data_poolnum=$(ceph osd dump | grep 'pool.*fs_data' | awk '{print $2;}')
-  metadata_poolnum=$(ceph osd dump | grep 'pool.*fs_metadata' | awk '{print $2;}')
-  set +e
+  ec_poolnum=$(ceph osd dump | grep "pool.* 'mds-ec-pool" | awk '{print $2;}')
+  data_poolnum=$(ceph osd dump | grep "pool.* 'fs_data" | awk '{print $2;}')
+  metadata_poolnum=$(ceph osd dump | grep "pool.* 'fs_metadata" | awk '{print $2;}')
 
+  ceph mds set max_mds 0
+  if $(ceph mds stat | grep active) ; then
+      ceph mds stop 0
+  fi
+  ceph mds fail 0
   ceph fs rm cephfs --yes-i-really-mean-it
 
+  set +e
   ceph mds newfs $metadata_poolnum $ec_poolnum --yes-i-really-mean-it 2>$TMPFILE
   check_response 'erasure-code' $? 22
   ceph mds newfs $ec_poolnum $data_poolnum --yes-i-really-mean-it 2>$TMPFILE
