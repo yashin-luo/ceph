@@ -328,16 +328,27 @@ function test_mon_misc()
 }
 
 
+function stop_all_mds()
+{
+  ceph mds set max_mds 0
+  if ceph mds stat | grep active ; then
+    num_mds=$(ceph mds stat | awk '{print $2;}' | cut -f1 -d'/')
+    for i in $(seq $(($num_mds-1)) -1 0); do
+      ceph mds stop $i
+      sleep 1
+    done
+  fi
+}
+
 function test_mon_mds()
 {
   existing_fs=$(ceph fs ls | grep "name:" | awk '{print substr($2,0,length($2)-1);}')
+  num_mds=$(ceph mds stat | awk '{print $2;}' | cut -f1 -d'/')
   if [ -n "$existing_fs" ] ; then
       echo "Removing existing filesystem '${existing_fs}'..."
-      ceph mds set max_mds 0
-      if $(ceph mds stat | grep active) ; then
-          ceph mds stop 0
+      if [[ $num_mds -gt 0 ]]; then
+        stop_all_mds
       fi
-      ceph mds fail 0
       ceph fs rm $existing_fs --yes-i-really-mean-it
       echo "Removed '${existing_fs}'."
   fi
@@ -413,9 +424,7 @@ function test_mon_mds()
   metadata_poolnum=$(ceph osd dump | grep "pool.* 'fs_metadata" | awk '{print $2;}')
 
   ceph mds set max_mds 0
-  if $(ceph mds stat | grep active) ; then
-      ceph mds stop 0
-  fi
+  stop_all_mds
   ceph mds fail 0
   ceph fs rm cephfs --yes-i-really-mean-it
 
