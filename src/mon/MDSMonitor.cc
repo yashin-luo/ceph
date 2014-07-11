@@ -388,6 +388,13 @@ bool MDSMonitor::prepare_beacon(MMDSBeacon *m)
 
   // boot?
   if (state == MDSMap::STATE_BOOT) {
+    if (pending_mdsmap.get_num_up_mds() + 1 > pending_mdsmap.get_max_mds()) {
+      dout(1) << "warning, MDS " << m->get_orig_source_inst()
+              << " trying to boot but we're already at the limit of max_mds"
+              << dendl;
+      m->put();
+      return false;
+    }
     // zap previous instance of this name?
     if (g_conf->mds_enforce_unique_name) {
       bool failed_mds = false;
