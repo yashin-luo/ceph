@@ -384,6 +384,16 @@ function test_mon_mds()
   # If not, that's a bug.  If so, we may want to wait for 'active' here.
   #
 
+  if [[ $num_mds -gt 0 ]]; then
+    for i in 1 2 3 4 5; do
+      if ceph mds stat | grep 'active' ; then
+        break
+      fi
+      echo "waiting for mds to go active"
+      sleep 2
+    done
+  fi
+
   # XXX mds fail, but how do you undo it?
   mdsmapfile=$TMPDIR/mdsmap.$$
   current_epoch=$(ceph mds getmap -o $mdsmapfile --no-log-to-stderr 2>&1 | grep epoch | sed 's/.*epoch //')
