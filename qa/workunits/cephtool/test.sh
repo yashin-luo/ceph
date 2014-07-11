@@ -372,6 +372,18 @@ function test_mon_mds()
   ceph mds compat show
   expect_false ceph mds deactivate 2
   ceph mds dump
+
+  # There's a fair chance that, while running 1+ MDS, the 'fs new' above will
+  # have set 'max_mds' to 1 and that the MDS is creating the new fs.
+  # What may happen here is that we may get a given mdsmap epoch but
+  # by the time we get to set it a new version has been committed -- thus we
+  # will be attempting to set an older version of the map.
+  #
+  # So the question that remains: is 'fs new' supposed to have that effect?
+  #
+  # If not, that's a bug.  If so, we may want to wait for 'active' here.
+  #
+
   # XXX mds fail, but how do you undo it?
   mdsmapfile=$TMPDIR/mdsmap.$$
   current_epoch=$(ceph mds getmap -o $mdsmapfile --no-log-to-stderr 2>&1 | grep epoch | sed 's/.*epoch //')
