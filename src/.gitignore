@@ -24,7 +24,6 @@ Makefile
 /ceph-syn
 /ceph.conf
 /ceph_bench_log
-/ceph_dupstore
 /ceph_filestore_dump
 /ceph_filestore_tool
 /ceph_mon_store_converter
