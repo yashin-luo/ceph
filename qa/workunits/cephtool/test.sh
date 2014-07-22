@@ -333,6 +333,7 @@ function test_mon_misc()
 function fail_all_mds()
 {
   ceph mds cluster_down
+  awk 'BEGIN {print FS;}'
   mds_gids=`ceph mds dump | grep up: | while read line ; do echo $line | awk '{print substr($1, 0, length($1)-1);}' ; done`
   for mds_gid in $mds_gids ; do
       # The GID should be in the map
