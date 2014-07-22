@@ -335,7 +335,14 @@ function fail_all_mds()
   ceph mds cluster_down
   mds_gids=`ceph mds dump | grep up: | while read line ; do echo $line | awk '{print substr($1, 0, length($1)-1);}' ; done`
   for mds_gid in $mds_gids ; do
+      # The GID should be in the map
+      echo `ceph mds dump | grep up:` | grep "^$mds_gid:" || exit 1
+      # Invoke fail
       ceph mds fail $mds_gid
+      # The failed GID should no longer be in the map
+      set +e
+      echo `ceph mds dump | grep up:` | grep "^$mds_gid:" && exit 1
+      set -e
   done
 }
 
@@ -354,9 +361,7 @@ function test_mon_mds()
   ceph osd pool create fs_metadata 10
   ceph fs new cephfs fs_metadata fs_data
 
-  # We don't want any MDSs to be up, their activity can interfere with
-  # the "current_epoch + 1" checking below if they're generating updates
-  fail_all_mds
+
 
   # Check for default crash_replay_interval set automatically in 'fs new'
   ceph osd dump | grep fs_data > $TMPFILE
@@ -371,7 +376,10 @@ function test_mon_mds()
   ceph mds compat show
   expect_false ceph mds deactivate 2
   ceph mds dump
-  # XXX mds fail, but how do you undo it?
+
+  # We don't want any MDSs to be up, their activity can interfere with
+  # the "current_epoch + 1" checking below if they're generating updates
+  fail_all_mds
   mdsmapfile=$TMPDIR/mdsmap.$$
   current_epoch=$(ceph mds getmap -o $mdsmapfile --no-log-to-stderr 2>&1 | grep epoch | sed 's/.*epoch //')
   [ -s $mdsmapfile ]
