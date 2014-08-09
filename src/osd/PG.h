@@ -575,8 +575,20 @@ public:
   eversion_t  min_last_complete_ondisk;  // up: min over last_complete_ondisk, peer_last_complete_ondisk
   eversion_t  pg_trim_to;
 
+  /// lower bound on how much longer we will remain readable
+  map<epoch_t,utime_t> readable_until;  ///< interval start -> readable_until
+
   /// initialize hb_stamps peer set based on role, acting
   void init_hb_stamps();
+
+  /// prune prior intervals' past readable_until values
+  void prune_past_readable_until(utime_t now);
+
+  const map<epoch_t,utime_t>& get_readable_until(utime_t now) {
+    prune_past_readable_until(now);
+    recalc_readable_until(now, false);
+    return readable_until;
+  }
 
   // [primary only] content recovery state
  protected:
