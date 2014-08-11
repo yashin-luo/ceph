@@ -59,6 +59,9 @@ public:
   T *operator->() const {
     return ptr;
   }
+  operator bool() const {
+    return ptr != NULL;
+  }
   bool operator<(const TrackedIntPtr &lhs) const {
     return ptr < lhs.ptr;
   }
