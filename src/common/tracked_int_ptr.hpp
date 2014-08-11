@@ -50,10 +50,13 @@ public:
     TrackedIntPtr o(rhs.ptr);
     swap(o);
   }
+  const T &operator*() const {
+    return *ptr;
+  }
   T &operator*() {
     return *ptr;
   }
-  T *operator->() {
+  T *operator->() const {
     return ptr;
   }
   bool operator<(const TrackedIntPtr &lhs) const {
