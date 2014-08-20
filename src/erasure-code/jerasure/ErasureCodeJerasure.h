@@ -68,7 +68,7 @@ public:
 			    const map<int, bufferlist> &chunks,
 			    map<int, bufferlist> *decoded);
 
-  void init(const map<std::string,std::string> &parameters);
+  int init(const map<std::string,std::string> &parameters);
   virtual void jerasure_encode(char **data,
                                char **coding,
                                int blocksize) = 0;

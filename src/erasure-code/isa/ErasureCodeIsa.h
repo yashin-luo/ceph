@@ -80,7 +80,7 @@ public:
 			    const map<int, bufferlist> &chunks,
 			    map<int, bufferlist> *decoded);
 
-  void init(const map<std::string, std::string> &parameters);
+  int init(const map<std::string, std::string> &parameters);
 
   virtual void isa_encode(char **data,
                           char **coding,

@@ -49,7 +49,7 @@ int ErasureCodeJerasure::create_ruleset(const string &name,
     return crush.get_rule_mask_ruleset(ruleid);
 }
 
-void ErasureCodeJerasure::init(const map<string,string> &parameters)
+int ErasureCodeJerasure::init(const map<string,string> &parameters)
 {
   dout(10) << "technique=" << technique << dendl;
   map<string,string>::const_iterator parameter;
@@ -59,10 +59,14 @@ void ErasureCodeJerasure::init(const map<string,string> &parameters)
   parameter = parameters.find("ruleset-failure-domain");
   if (parameter != parameters.end())
     ruleset_failure_domain = parameter->second;
+
   ostringstream ss;
-  if (parse(parameters, &ss))
+  int ret = parse(parameters, &ss);
+  if (ret < 0)
     derr << ss.str() << dendl;
-  prepare();
+  else
+    prepare();
+  return ret;
 }
 
 int ErasureCodeJerasure::parse(const map<std::string,std::string> &parameters,

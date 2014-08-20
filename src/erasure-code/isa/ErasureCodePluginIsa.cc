@@ -66,9 +66,12 @@ public:
       }
     }
 
-    interface->init(parameters);
-    *erasure_code = ErasureCodeInterfaceRef(interface);
-    return 0;
+    int ret = interface->init(parameters);
+    if (ret < 0)
+      delete interface;
+    else
+      *erasure_code = ErasureCodeInterfaceRef(interface);
+    return ret;
   }
 };
 
