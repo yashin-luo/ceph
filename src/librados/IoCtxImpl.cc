@@ -1150,7 +1150,9 @@ int librados::IoCtxImpl::unwatch(const object_t& oid, uint64_t cookie)
 }
 
 int librados::IoCtxImpl::notify(const object_t& oid, bufferlist& bl,
-				uint64_t timeout_ms)
+				uint64_t timeout_ms,
+				bufferlist *preply_bl,
+				char **preply_buf, size_t *preply_buf_len)
 {
   bufferlist inbl, outbl;
 
@@ -1172,6 +1174,9 @@ int librados::IoCtxImpl::notify(const object_t& oid, bufferlist& bl,
   wc->notify_lock = &mylock_all;
   wc->notify_cond = &cond_all;
   wc->notify_rval = &r;
+  wc->notify_reply_bl = preply_bl;
+  wc->notify_reply_buf = preply_buf;
+  wc->notify_reply_buf_len = preply_buf_len;
   client->register_watch_notify_callback(wc, &cookie);
   uint32_t prot_ver = 1;
   uint32_t timeout = notify_timeout;

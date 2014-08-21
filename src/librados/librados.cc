@@ -1412,14 +1412,14 @@ int librados::IoCtx::unwatch(const string& oid, uint64_t handle)
 int librados::IoCtx::notify(const string& oid, uint64_t ver, bufferlist& bl)
 {
   object_t obj(oid);
-  return io_ctx_impl->notify(obj, bl, 0);
+  return io_ctx_impl->notify(obj, bl, 0, NULL, NULL, NULL);
 }
 
 int librados::IoCtx::notify2(const string& oid, bufferlist& bl,
-			     uint64_t timeout_ms)
+			     uint64_t timeout_ms, bufferlist *preplybl)
 {
   object_t obj(oid);
-  return io_ctx_impl->notify(obj, bl, timeout_ms);
+  return io_ctx_impl->notify(obj, bl, timeout_ms, preplybl, NULL, NULL);
 }
 
 int librados::IoCtx::list_watchers(const std::string& oid,
@@ -3034,12 +3034,14 @@ extern "C" int rados_notify(rados_ioctx_t io, const char *o,
     memcpy(p.c_str(), buf, buf_len);
     bl.push_back(p);
   }
-  return ctx->notify(oid, bl, 0);
+  return ctx->notify(oid, bl, 0, NULL, NULL, NULL);
 }
 
 extern "C" int rados_notify2(rados_ioctx_t io, const char *o,
 			     const char *buf, int buf_len,
-			     uint64_t timeout_ms)
+			     uint64_t timeout_ms,
+			     char **reply_buffer,
+			     size_t *reply_buffer_len)
 {
   librados::IoCtxImpl *ctx = (librados::IoCtxImpl *)io;
   object_t oid(o);
@@ -3049,7 +3051,7 @@ extern "C" int rados_notify2(rados_ioctx_t io, const char *o,
     memcpy(p.c_str(), buf, buf_len);
     bl.push_back(p);
   }
-  return ctx->notify(oid, bl, timeout_ms);
+  return ctx->notify(oid, bl, timeout_ms, NULL, reply_buffer, reply_buffer_len);
 }
 
 extern "C" int rados_notify_ack(rados_ioctx_t io, const char *o,
