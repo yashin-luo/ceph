@@ -6237,7 +6237,7 @@ void OSD::handle_osd_map(MOSDMap *m)
 	     << dendl;
 
       bufferlist fbl;
-      o->encode(fbl);
+      o->encode(fbl, inc.encode_features | CEPH_FEATURE_RESERVED);
 
       hobject_t fulloid = get_osdmap_pobject_name(e);
       t.write(coll_t::META_COLL, fulloid, 0, fbl.length(), fbl);
