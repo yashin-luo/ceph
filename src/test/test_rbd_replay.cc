@@ -48,7 +48,7 @@ TEST(RBDReplay, Ser) {
   std::string s(oss.str());
   const char* data = s.data();
   size_t size = s.size();
-  ASSERT_EQ(15, size);
+  ASSERT_EQ(15u, size);
   const char expected_data[] = {1, 2, 3, 4, 0, 0, 0, 5, 'h', 'e', 'l', 'l', 'o', 1, 0};
   for (size_t i = 0; i < size; i++) {
     EXPECT_EQ(expected_data[i], data[i]);
