@@ -45,6 +45,43 @@ static size_t send_http_data(void *ptr, size_t size, size_t nmemb, void *_info)
   return ret;
 }
 
+static curl_slist *headers_to_slist(list<pair<string, string> >& headers)
+{
+  curl_slist *h = NULL;
+
+  list<pair<string, string> >::iterator iter;
+  for (iter = headers.begin(); iter != headers.end(); ++iter) {
+    pair<string, string>& p = *iter;
+    string val = p.first;
+
+    if (strncmp(val.c_str(), "HTTP_", 5) == 0) {
+      val = val.substr(5);
+    }
+
+    /* we need to convert all underscores into dashes as some web servers forbid them
+     * in the http header field names
+     */
+    char normalized_val[val.size() + 1];
+    size_t i;
+    for (i = 0; i < val.size(); i++) {
+      char c = val[i];
+      if (c == '_') {
+        c = '-';
+      }
+      normalized_val[i] = c;
+    }
+    normalized_val[i] = '\0';
+
+    val = normalized_val;
+
+    val.append(": ");
+    val.append(p.second);
+    h = curl_slist_append(h, val.c_str());
+  }
+
+  return h;
+}
+
 int RGWHTTPClient::process(const char *method, const char *url)
 {
   int ret = 0;
@@ -56,20 +93,7 @@ int RGWHTTPClient::process(const char *method, const char *url)
 
   dout(20) << "sending request to " << url << dendl;
 
-  curl_slist *h = NULL;
-
-  list<pair<string, string> >::iterator iter;
-  for (iter = headers.begin(); iter != headers.end(); ++iter) {
-    pair<string, string>& p = *iter;
-    string val = p.first;
-
-    if (strncmp(val.c_str(), "HTTP_", 5) == 0) {
-      val = val.substr(5);
-    }
-    val.append(": ");
-    val.append(p.second);
-    h = curl_slist_append(h, val.c_str());
-  }
+  curl_slist *h = headers_to_slist(headers);
 
   curl_easy_setopt(curl_handle, CURLOPT_CUSTOMREQUEST, method);
   curl_easy_setopt(curl_handle, CURLOPT_URL, url);
@@ -142,20 +166,7 @@ int RGWHTTPClient::init_async(const char *method, const char *url, void **handle
 
   dout(20) << "sending request to " << url << dendl;
 
-  curl_slist *h = NULL;
-
-  list<pair<string, string> >::iterator iter;
-  for (iter = headers.begin(); iter != headers.end(); ++iter) {
-    pair<string, string>& p = *iter;
-    string val = p.first;
-
-    if (strncmp(val.c_str(), "HTTP_", 5) == 0) {
-      val = val.substr(5);
-    }
-    val.append(": ");
-    val.append(p.second);
-    h = curl_slist_append(h, val.c_str());
-  }
+  curl_slist *h = headers_to_slist(headers);
 
   req_data->h = h;
 
