@@ -130,6 +130,15 @@ int ErasureCodeBench::encode()
   int k = atoi(parameters["k"].c_str());
   int m = atoi(parameters["m"].c_str());
 
+  if (erasure_code->get_data_chunk_count() != (unsigned int)k ||
+      (erasure_code->get_chunk_count() - erasure_code->get_data_chunk_count() 
+       != (unsigned int)m)) {
+    cout << "parameter k is " << k << "/m is " << m << " But data chunk count is " 
+      << erasure_code->get_data_chunk_count() << "/parity chunk count is " 
+      << erasure_code->get_chunk_count() - erasure_code->get_data_chunk_count() << endl;
+    return -EINVAL;
+  }
+
   bufferlist in;
   in.append(string(in_size, 'X'));
   set<int> want_to_encode;
@@ -157,6 +166,15 @@ int ErasureCodeBench::decode()
     return code;
   int k = atoi(parameters["k"].c_str());
   int m = atoi(parameters["m"].c_str());
+
+  if (erasure_code->get_data_chunk_count() != (unsigned int)k ||
+      (erasure_code->get_chunk_count() - erasure_code->get_data_chunk_count() 
+       != (unsigned int)m)) {
+    cout << "parameter k is " << k << "/m is " << m << " But data chunk count is " 
+      << erasure_code->get_data_chunk_count() << "/parity chunk cout is " 
+      << erasure_code->get_chunk_count() - erasure_code->get_data_chunk_count() << endl;
+    return -EINVAL;
+  }
 
   bufferlist in;
   in.append(string(in_size, 'X'));
