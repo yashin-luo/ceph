@@ -40,6 +40,7 @@ namespace librbd {
       wctx(NULL),
       refresh_seq(0),
       last_refresh(0),
+      readahead_lock("librbd::ImageCtx::readahead_lock"),
       md_lock("librbd::ImageCtx::md_lock"),
       cache_lock("librbd::ImageCtx::cache_lock"),
       snap_lock("librbd::ImageCtx::snap_lock"),
@@ -51,7 +52,14 @@ namespace librbd {
       format_string(NULL),
       id(image_id), parent(NULL),
       stripe_unit(0), stripe_count(0),
-      object_cacher(NULL), writeback_handler(NULL), object_set(NULL)
+      object_cacher(NULL), writeback_handler(NULL), object_set(NULL),
+      nr_consec_read(0),
+      consec_read_bytes(0),
+      last_pos(0),
+      readahead_pos(0),
+      readahead_trigger_pos(0),
+      readahead_size(0),
+      total_bytes_read(0)
   {
     md_ctx.dup(p);
     data_ctx.dup(p);

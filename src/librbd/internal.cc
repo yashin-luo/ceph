@@ -3130,6 +3130,81 @@ reprotect_and_return_err:
     snap_t snap_id = ictx->snap_id;
     ictx->snap_lock.put_read();
 
+    // readahead
+    const md_config_t *conf = ictx->cct->_conf;
+    if (ictx->object_cacher && conf->rbd_readahead_max_bytes > 0) {
+      ictx->readahead_lock.Lock();
+      for (vector<pair<uint64_t,uint64_t> >::const_iterator p = image_extents.begin();
+	   p != image_extents.end();
+	   ++p) {
+	if (p->first == ictx->last_pos) {
+	  ictx->nr_consec_read++;
+	  ictx->consec_read_bytes += p->second;
+	} else {
+	  ictx->nr_consec_read = 0;
+	  ictx->consec_read_bytes = 0;
+	  ictx->readahead_trigger_pos = 0;
+	  ictx->readahead_size = 0;
+	}
+	ictx->last_pos = p->first + p->second;
+	ictx->total_bytes_read += p->second;
+      }
+      uint64_t readahead_offset = 0;
+      uint64_t readahead_length = 0;
+      if (ictx->nr_consec_read >= conf->rbd_readahead_trigger_requests &&
+	  (conf->rbd_readahead_disable_after_bytes == 0 || ictx->total_bytes_read < conf->rbd_readahead_disable_after_bytes)) {
+	// currently reading sequentially
+	if (ictx->last_pos >= ictx->readahead_trigger_pos) {
+	  // need to read ahead
+	  if (ictx->readahead_size == 0) {
+	    // initial readahead trigger
+	    ictx->readahead_size = ictx->consec_read_bytes;
+	    ictx->readahead_pos = ictx->last_pos;
+	  } else {
+	    // continuing readahead trigger
+	    ictx->readahead_size *= 2;
+	  }
+	  ictx->readahead_size = MIN(ictx->readahead_size, conf->rbd_readahead_max_bytes);
+	  r = clip_io(ictx, ictx->readahead_pos, &ictx->readahead_size);
+	  if (r) {
+	    ictx->readahead_size = 0;
+	  }
+	  readahead_offset = ictx->readahead_pos;
+	  readahead_length = ictx->readahead_size;
+	  ictx->readahead_trigger_pos = ictx->readahead_pos + ictx->readahead_size / 2;
+	  ictx->readahead_pos += ictx->readahead_size;
+	}
+      }
+      ictx->readahead_lock.Unlock();
+      if (readahead_length > 0) {
+	map<object_t,vector<ObjectExtent> > readahead_object_extents;
+	Striper::file_to_extents(ictx->cct, ictx->format_string, &ictx->layout,
+				 readahead_offset, readahead_length, 0, readahead_object_extents);
+	for (map<object_t,vector<ObjectExtent> >::iterator p = readahead_object_extents.begin(); p != readahead_object_extents.end(); ++p) {
+	  for (vector<ObjectExtent>::iterator q = p->second.begin(); q != p->second.end(); ++q) {
+	    ldout(ictx->cct, 20) << "(readahead) oid " << q->oid << " " << q->offset << "~" << q->length << dendl;
+
+	    struct C_RBD_Readahead : public Context {
+	      ImageCtx *ictx;
+	      object_t oid;
+	      uint64_t offset;
+	      uint64_t length;
+	      C_RBD_Readahead(ImageCtx *ictx, object_t oid, uint64_t offset, uint64_t length)
+		: ictx(ictx), oid(oid), offset(offset), length(length) { }
+	      void finish(int r) {
+		ldout(ictx->cct, 20) << "C_RBD_Readahead on " << oid << ": " << offset << "+" << length << dendl;
+	      }
+	    };
+
+	    Context *req_comp = new C_RBD_Readahead(ictx, q->oid, q->offset, q->length);
+	    ictx->aio_read_from_cache(q->oid, NULL,
+				      q->length, q->offset,
+				      req_comp);
+	  }
+	}
+      }
+    }
+
     // map
     map<object_t,vector<ObjectExtent> > object_extents;
 

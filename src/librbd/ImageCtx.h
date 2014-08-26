@@ -60,8 +60,9 @@ namespace librbd {
 
     /**
      * Lock ordering:
-     * md_lock, cache_lock, snap_lock, parent_lock, refresh_lock
+     * readahead_lock, md_lock, cache_lock, snap_lock, parent_lock, refresh_lock
      */
+    Mutex readahead_lock; // protects readahead variables
     RWLock md_lock; // protects access to the mutable image metadata that
                    // isn't guarded by other locks below
                    // (size, features, image locks, etc)
@@ -89,6 +90,16 @@ namespace librbd {
     ObjectCacher *object_cacher;
     LibrbdWriteback *writeback_handler;
     ObjectCacher::ObjectSet *object_set;
+
+    // readahead vars protected by readahead_lock
+    // all positions and sizes in bytes
+    int nr_consec_read;
+    uint64_t consec_read_bytes;
+    uint64_t last_pos;
+    uint64_t readahead_pos;
+    uint64_t readahead_trigger_pos;
+    uint64_t readahead_size;
+    uint64_t total_bytes_read;
 
     /**
      * Either image_name or image_id must be set.
