@@ -7771,6 +7771,7 @@ void OSD::check_replay_queue()
   }
   replay_queue_lock.Unlock();
 
+  list< pair<spg_t,utime_t> > requeue;
   for (list< pair<spg_t,utime_t> >::iterator p = pgids.begin(); p != pgids.end(); ++p) {
     spg_t pgid = p->first;
     pg_map_lock.get_read();
@@ -7784,12 +7785,34 @@ void OSD::check_replay_queue()
           pg->replay_until == p->second) {
         pg->replay_queued_ops();
       }
+      if (pg->is_replay()) {
+       dout(12) << "check_replay_queue requeueing " << pgid
+                << (pg->is_active() ? "" : ", not active")
+                << (pg->is_primary() ? "" : ", not primary")
+                << (pg->replay_until == p->second ? ""
+                    : ", mismatched replay_until")
+                << ", pg->until " << pg->replay_until
+                << ", queued " << p->second << dendl;
+       requeue.push_back(*p);
+      }
       pg->unlock();
     } else {
       pg_map_lock.unlock();
       dout(10) << "check_replay_queue pgid " << pgid << " (not found)" << dendl;
     }
   }
+
+  if (!requeue.empty()) {
+    replay_queue_lock.Lock();
+    // reverse order to preserve it; push to the front of the queue,
+    // where these entries came from
+    while (!requeue.empty()) {
+      replay_queue.push_front(requeue.back());
+      requeue.pop_back();
+    }
+    replay_queue_lock.Unlock();
+  }
+
 }
 
 bool OSD::_recover_now()
